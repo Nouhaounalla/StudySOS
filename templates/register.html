@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySOS - Inscription</title>
+    <link rel="stylesheet" href="{% static 'css/register.css' %}">
+</head>
+<body>
+    <div class="card">
+        <h1>StudySOS</h1>
+        <p class="subtitle">Creez votre compte gratuitement</p>
+        
+        <div class="input-group">
+            <input type="text" id="username" placeholder=" " oninput="validate('username')" required>
+            <label for="username">Nom d'utilisateur <span style="color: red;">*</span></label>
+            <span class="error-msg" id="username-err"></span>
+        </div>
+        <div class="input-group">
+            <input type="email" id="email" placeholder=" " oninput="validate('email')" required>
+            <label for="email">Email <span style="color: red;">*</span></label>
+            <span class="error-msg" id="email-err"></span>
+        </div>
+         <div class="input-group">
+            <input type="text" id="phone" placeholder=" ">
+            <label for="phone">Téléphone (optionnel)</label>
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder=" " oninput="validate('password')" required>
+            <label for="password">Mot de passe <span style="color: red;">*</span></label>
+            <span class="error-msg" id="password-err"></span>
+        </div>
+         <p id="champ"><span style="color: red;">*</span>: champs obligatoires</p>
+        <button type="button" id="submit-btn" onclick="register()">S'inscrire</button>
+        <div class="message" id="message"></div>
+        <div class="login-link">Deja inscrit? <a href="#">Connectez-vous</a></div>
+       
+        
+    </div>
+     <script>
+        function validate(field) {
+            const input = document.getElementById(field);
+            const err = document.getElementById(field + '-err');
+            const group = input.parentElement;
+
+            let msg = '';
+
+            if (field === 'username') {
+                if (input.value.length < 3) msg = 'Au moins 3 caractères requis.';
+            }
+            if (field === 'email') {
+                if (!input.value.includes('@') || !input.value.includes('.'))
+                    msg = 'Adresse email invalide.';
+            }
+            if (field === 'password') {
+                if (input.value.length < 8) msg = 'Au moins 8 caractères requis.';
+            }
+
+            if (msg) {
+                err.textContent = msg;
+                group.classList.add('invalid');
+                group.classList.remove('valid');
+            } else {
+                err.textContent = '';
+                group.classList.remove('invalid');
+                group.classList.add('valid');
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('username').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const msg = document.getElementById('message');
+
+            if (!username || !email || !password) {
+                msg.textContent = 'Veuillez remplir tous les champs obligatoires.';
+                msg.className = 'message error';
+                msg.style.display = 'block';
+                return;
+            }
+            // Validate all fields first
+            ['username', 'email', 'password'].forEach(validate);
+
+            const invalids = document.querySelectorAll('.input-group.invalid');
+            if (invalids.length > 0) return;
+
+            const btn = document.getElementById('submit-btn');
+        
+
+            // Animate button
+            btn.classList.add('loading');
+            btn.textContent = 'Inscription...';
+
+            const data = {
+                username,
+                email,
+                phone: document.getElementById('phone').value,
+                password,
+            };
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/users/register/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                btn.textContent = 'Compte créé !';
+                btn.classList.add('success-btn');
+                msg.textContent = '🎉 Bienvenue ! Redirection...';
+                msg.className = 'message success';
+                msg.style.display = 'block';
+                setTimeout(() => {
+                    console.log('Redirecting with user_id:', result.user_id);
+                    window.location.href = `/api/users/profile-page/?user_id=${result.user_id}`;
+                }, 2000);
+                } else {
+                    btn.textContent = "S'inscrire";
+                    btn.classList.remove('loading');
+                    const errors = Object.values(result).flat().join(' ');
+                    msg.textContent = errors;
+                    msg.className = 'message error';
+                }
+                msg.style.display = 'block';
+
+            } catch (err) {
+                btn.textContent = "S'inscrire";
+                btn.classList.remove('loading');
+                msg.textContent = 'Erreur de connexion au serveur.';
+                msg.className = 'message error';
+                msg.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySOS — Mon Profil</title>
+    <link rel="stylesheet" href="{% static 'css/profile.css' %}">
+</head>
+<body>
+    <div class="card">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <h1>StudySOS</h1>
+        <p class="subtitle">Complétez votre profil</p>
+
+        <div class="input-group">
+            <input type="text" id="first_name" placeholder=" " oninput="updateProgress()" required>
+            <label for="first_name">Prénom</label>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="last_name" placeholder=" " oninput="updateProgress()" required>
+            <label for="last_name">Nom de famille</label>
+        </div>
+
+        <div class="input-group">
+            <input type="date" id="date_of_birth" oninput="updateProgress()">
+            <label for="date_of_birth" class="active">Date de naissance</label>
+        </div>
+
+        <div class="input-group">
+            <select id="role" onchange="updateProgress()">
+                <option value="">-- Choisir --</option>
+                <option value="etudiant">Étudiant</option>
+                <option value="tuteur">Tuteur</option>
+            </select>
+            <label for="role" class="active">Je suis...</label>
+        </div>
+
+        <div class="input-group">
+            <textarea id="purpose" placeholder=" " rows="3" oninput="updateProgress()"></textarea>
+            <label for="purpose">Pourquoi rejoindre StudySOS ?</label>
+        </div>
+
+        <div class="input-group">
+            <textarea id="bio" placeholder=" " rows="3" oninput="updateProgress()"></textarea>
+            <label for="bio">Bio (optionnel)</label>
+        </div>
+
+        <button type="button" id="submit-btn" onclick="saveProfile()">Continuer →</button>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        const userId = new URLSearchParams(window.location.search).get('user_id');
+
+        const fields = ['first_name', 'last_name', 'date_of_birth', 'role', 'purpose'];
+
+        function updateProgress() {
+            const filled = fields.filter(f => document.getElementById(f).value.trim() !== '').length;
+            const pct = (filled / fields.length) * 100;
+            document.getElementById('progress-fill').style.width = pct + '%';
+        }
+
+        async function saveProfile() {
+            const btn = document.getElementById('submit-btn');
+            const msg = document.getElementById('message');
+
+            const first_name = document.getElementById('first_name').value.trim();
+            const last_name = document.getElementById('last_name').value.trim();
+            const role = document.getElementById('role').value;
+
+            if (!first_name || !last_name || !role) {
+                msg.textContent = 'Prénom, nom et rôle sont obligatoires.';
+                msg.className = 'message error';
+                msg.style.display = 'block';
+                return;
+            }
+
+            btn.textContent = 'Enregistrement...';
+            btn.classList.add('loading');
+
+            const data = {
+                first_name,
+                last_name,
+                date_of_birth: document.getElementById('date_of_birth').value || null,
+                role,
+                purpose: document.getElementById('purpose').value.trim(),
+                bio: document.getElementById('bio').value.trim(),
+            };
+
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/api/users/profile/${userId}/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    btn.textContent = 'Profil sauvegardé !';
+                    btn.classList.add('success-btn');
+                    msg.textContent = 'Profil complété ! Bienvenue sur StudySOS !';
+                    msg.className = 'message success';
+                    msg.style.display = 'block';
+                } else {
+                    btn.textContent = 'Continuer →';
+                    btn.classList.remove('loading');
+                    const errors = Object.values(result).flat().join(' ');
+                    msg.textContent = errors;
+                    msg.className = 'message error';
+                    msg.style.display = 'block';
+                }
+
+            } catch (err) {
+                btn.textContent = 'Continuer →';
+                btn.classList.remove('loading');
+                msg.textContent = 'Erreur de connexion au serveur.';
+                msg.className = 'message error';
+                msg.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
