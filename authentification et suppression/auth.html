@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudySOS — Authentification</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --vert:       #2d6a2d;
+      --vert-clair: #e8f0e8;
+      --vert-fonce: #1e4d1e;
+      --rouge:      #c0392b;
+      --rouge-lt:   #fdecea;
+      --ok:         #27ae60;
+      --ok-lt:      #eafaf1;
+      --bg:         #f5f5f5;
+      --blanc:      #ffffff;
+      --texte:      #1a1a18;
+      --gris:       #6b6b6b;
+      --bordure:    #ddd;
+      --radius:     12px;
+      --ombre:      0 10px 40px rgba(0,0,0,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #1e4d1e 0%, #2d6a2d 50%, #4a8f4a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .carte {
+      background: var(--blanc);
+      border-radius: 20px;
+      box-shadow: var(--ombre);
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+    }
+    .onglets {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 2px solid var(--bordure);
+    }
+    .onglet {
+      padding: 18px;
+      text-align: center;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--gris);
+      background: #f9f9f9;
+      border: none;
+      transition: all .25s;
+      font-family: 'Poppins', sans-serif;
+    }
+    .onglet.actif {
+      color: var(--vert);
+      background: var(--blanc);
+      border-bottom: 3px solid var(--vert);
+      margin-bottom: -2px;
+    }
+    .corps {
+      padding: 32px 36px 28px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .logo-cercle {
+      width: 56px; height: 56px;
+      background: var(--vert);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+    }
+    .logo h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--texte);
+    }
+    .logo p {
+      font-size: .78rem;
+      color: var(--gris);
+      margin-top: 2px;
+    }
+    .panneau { display: none; }
+    .panneau.actif { display: block; }
+    .fg {
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .fg label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--texte);
+      margin-bottom: 6px;
+      letter-spacing: .02em;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap .icone {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 1rem;
+      pointer-events: none;
+    }
+    input[type=text],
+    input[type=email],
+    input[type=password] {
+      width: 100%;
+      padding: 12px 14px 12px 40px;
+      border: 1.5px solid var(--bordure);
+      border-radius: var(--radius);
+      font-family: 'Poppins', sans-serif;
+      font-size: .88rem;
+      color: var(--texte);
+      background: #fafafa;
+      outline: none;
+      transition: border-color .2s, background .2s;
+    }
+    input:focus {
+      border-color: var(--vert);
+      background: #fff;
+    }
+    input.invalide {
+      border-color: var(--rouge);
+      background: var(--rouge-lt);
+    }
+    .deux-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .roles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .rbtn {
+      padding: 11px 8px;
+      border: 2px solid var(--bordure);
+      border-radius: var(--radius);
+      text-align: center;
+      cursor: pointer;
+      font-size: .85rem;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 500;
+      background: #fafafa;
+      color: var(--gris);
+      transition: all .2s;
+    }
+    .rbtn:hover { border-color: var(--vert); color: var(--vert); }
+    .rbtn.actif {
+      border-color: var(--vert);
+      background: var(--vert-clair);
+      color: var(--vert);
+      font-weight: 600;
+    }
+    .jauge-wrap {
+      margin-top: 8px;
+      display: flex;
+      gap: 4px;
+    }
+    .jauge-seg {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--bordure);
+      transition: background .3s;
+    }
+    .force-label {
+      font-size: .7rem;
+      color: var(--gris);
+      margin-top: 4px;
+    }
+    .feedback {
+      padding: 11px 14px;
+      border-radius: 9px;
+      font-size: .82rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.4;
+    }
+    .feedback.err {
+      display: flex;
+      background: var(--rouge-lt);
+      color: var(--rouge);
+      border: 1.5px solid #f5b7b1;
+    }
+    .feedback.ok {
+      display: flex;
+      background: var(--ok-lt);
+      color: var(--ok);
+      border: 1.5px solid #a9dfbf;
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--vert);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'Poppins', sans-serif;
+      font-size: .93rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .btn-submit:hover { background: var(--vert-fonce); }
+    .btn-submit:active { transform: scale(.98); }
+    .btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-danger {
+      background: var(--rouge);
+    }
+    .btn-danger:hover { background: #a93226; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .chargement .spinner { display: inline-block; }
+    .chargement .btn-txt { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .separateur {
+      text-align: center;
+      font-size: .78rem;
+      color: var(--gris);
+      margin: 18px 0 0;
+    }
+    .separateur a {
+      color: var(--vert);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .separateur a:hover { text-decoration: underline; }
+    .alerte-rouge {
+      background: #fff5f5;
+      border: 1.5px solid #f5c6c2;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 18px;
+      font-size: .82rem;
+      color: #7b1a14;
+      line-height: 1.5;
+    }
+    .alerte-rouge strong {
+      display: block;
+      font-size: .88rem;
+      margin-bottom: 5px;
+    }
+    .lien-sup {
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      font-size: .75rem;
+      color: var(--gris);
+      cursor: pointer;
+    }
+    .lien-sup:hover { color: var(--rouge); text-decoration: underline; }
+    .confirm-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #fafafa;
+      border-radius: 9px;
+      border: 1.5px solid var(--bordure);
+    }
+    .confirm-wrap input[type=checkbox] {
+      width: 17px; height: 17px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: var(--rouge);
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .confirm-wrap label {
+      font-size: .8rem;
+      color: var(--texte);
+      cursor: pointer;
+      margin: 0;
+    }
+    @media (max-width: 480px) {
+      .corps { padding: 24px 20px; }
+      .deux-cols { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="carte">
+  <div class="onglets">
+    <button class="onglet actif" id="ong-conn"   onclick="afficherOnglet('connexion')">Se connecter
+    </button>
+    <button class="onglet"       id="ong-ins"    onclick="afficherOnglet('inscription')">S'inscrire
+    </button>
+  </div>
+  <div class="corps">
+    <div class="logo">
+      <div class="logo-cercle"></div>
+      <h2>StudySOS</h2>
+      <p>La plateforme d'entraide académique</p>
+    </div>
+    <div class="panneau actif" id="pan-connexion">
+      <div class="feedback" id="fb-conn"></div>
+      <form id="form-conn" novalidate>
+        <div class="fg">
+          <label for="c-email">Adresse email</label>
+          <div class="input-wrap">
+            <input type="email" id="c-email" name="email"
+                   placeholder="votre@email.com"
+                   required autocomplete="email"/>
+          </div>
+        </div>
+        <div class="fg">
+          <label for="c-pwd">Mot de passe</label>
+          <div class="input-wrap">
+            <input type="password" id="c-pwd" name="mot_de_passe"
+                   placeholder="••••••••"
+                   required autocomplete="current-password"/>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit" id="btn-conn">
+          <span class="btn-txt">Se connecter</span>
+          <div class="spinner"></div>
+        </button>
+      </form>
+      <div class="separateur">
+        Pas encore de compte ?
+        <a onclick="afficherOnglet('inscription')">S'inscrire</a>
+      </div>
+      <span class="lien-sup" onclick="afficherOnglet('suppression')">
+        Supprimer mon compte
+      </span>
+    </div>
+    <div class="panneau" id="pan-inscription">
+      <div class="feedback" id="fb-ins"></div>
+      <form id="form-ins" novalidate>
+        <div class="deux-cols">
+          <div class="fg">
+            <label for="i-prenom">Prénom</label>
+            <div class="input-wrap">
+              <input type="text" id="i-prenom" name="prenom" required/>
+            </div>
+          </div>
+          <div class="fg">
+            <label for="i-nom">Nom</label>
+            <div class="input-wrap">
+              <input type="text" id="i-nom" name="nom" required/>
+            </div>
+          </div>
+        </div>
+        <div class="fg">
+          <label for="i-email">Adresse email</label>
+          <div class="input-wrap">
+            <input type="email" id="i-email" name="email"
+                   required autocomplete="email"/>
+          </div>
+        </div>
+        <div class="fg">
+          <label for="i-pwd">Mot de passe</label>
+          <div class="input-wrap">
+            <input type="password" id="i-pwd" name="mot_de_passe"
+                   required autocomplete="new-password"
+                   oninput="majJauge(this.value)"/>
+          </div>
+          <div class="jauge-wrap">
+            <div class="jauge-seg" id="j1"></div>
+            <div class="jauge-seg" id="j2"></div>
+            <div class="jauge-seg" id="j3"></div>
+            <div class="jauge-seg" id="j4"></div>
+          </div>
+          <div class="force-label" id="force-txt">Entrez un mot de passe</div>
+        </div>
+        <div class="fg">
+          <label>Je suis…</label>
+          <input type="hidden" name="role" id="role-val" value="etudiant"/>
+          <div class="roles">
+            <button type="button" class="rbtn actif" id="rb-etu"
+                    onclick="setRole('etudiant')"> Étudiant</button>
+            <button type="button" class="rbtn" id="rb-tut"
+                    onclick="setRole('tuteur')">Tuteur</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="btn-ins">
+          <span class="btn-txt">Créer mon compte</span>
+          <div class="spinner"></div>
+        </button>
+      </form>
+      <div class="separateur">
+        Déjà inscrit ?
+        <a onclick="afficherOnglet('connexion')">Se connecter</a>
+      </div>
+    </div>
+    <div class="panneau" id="pan-suppression">
+      <div class="feedback" id="fb-sup"></div>
+      <div class="alerte-rouge">
+        <strong>Suppression définitive</strong>
+        Cette action <strong>efface votre compte de la base de données</strong>
+        de façon permanente. Toutes vos données (questions, réponses)
+        seront perdues et <u>ne pourront pas être récupérées</u>.
+      </div>
+      <form id="form-sup" novalidate>
+        <div class="fg">
+          <label for="s-email">Votre adresse email</label>
+          <div class="input-wrap">
+            <input type="email" id="s-email" name="email" required/>
+          </div>
+        </div>
+        <div class="fg">
+          <label for="s-pwd">Votre mot de passe (confirmation)</label>
+          <div class="input-wrap">
+            <input type="password" id="s-pwd" name="mot_de_passe" required/>
+          </div>
+        </div>
+        <div class="confirm-wrap">
+          <input type="checkbox" id="s-confirm" name="confirme"/>
+          <label for="s-confirm">
+            Je comprends que cette suppression est <strong>définitive et irréversible</strong>
+            et j'accepte de perdre toutes mes données.
+          </label>
+        </div>
+        <button type="submit" class="btn-submit btn-danger" id="btn-sup">
+          <span class="btn-txt">Supprimer définitivement</span>
+          <div class="spinner"></div>
+        </button>
+      </form>
+      <div class="separateur">
+        <a onclick="afficherOnglet('connexion')">← Annuler, retour connexion</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+function afficherOnglet(nom) {
+  document.querySelectorAll('.panneau').forEach(p => p.classList.remove('actif'));
+  document.querySelectorAll('.onglet').forEach(o => o.classList.remove('actif'));
+  document.getElementById('pan-' + nom).classList.add('actif');
+  if (nom === 'connexion')   document.getElementById('ong-conn').classList.add('actif');
+  if (nom === 'inscription') document.getElementById('ong-ins').classList.add('actif');
+  document.querySelectorAll('.feedback').forEach(f => {
+    f.className = 'feedback';
+    f.textContent = '';
+  });
+}
+function showFb(id, msg, ok) {
+  const el = document.getElementById(id);
+  el.innerHTML =  msg;
+  el.className = 'feedback ' + (ok ? 'ok' : 'err');
+}
+function hideFb(id) {
+  const el = document.getElementById(id);
+  el.className = 'feedback';
+  el.innerHTML = '';
+}
+function setLoading(btnId, on) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = on;
+  btn.classList.toggle('chargement', on);
+}
+async function ajax(form, url) {
+  const res = await fetch(url, {
+    method: 'POST',
+    body: new FormData(form),
+    credentials: 'same-origin'
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+const couleurs = ['#ddd', '#e74c3c', '#e67e22', '#f1c40f', '#27ae60'];
+const labels   = ['', 'Très faible ', 'Faible ', 'Moyen ', 'Fort '];
+function majJauge(val) {
+  let score = 0;
+  if (val.length >= 8)          score++;  
+  if (/[A-Z]/.test(val))        score++; 
+  if (/[0-9]/.test(val))        score++; 
+  if (/[^A-Za-z0-9]/.test(val)) score++;  
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('j' + i).style.background =
+      i <= score ? couleurs[score] : '#ddd';
+  }
+  document.getElementById('force-txt').textContent = val ? labels[score] : 'Entrez un mot de passe';
+}
+function setRole(role) {
+  document.getElementById('role-val').value = role;
+  document.getElementById('rb-etu').classList.toggle('actif', role === 'etudiant');
+  document.getElementById('rb-tut').classList.toggle('actif', role === 'tuteur');
+}
+function emailValide(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+function marquerInvalide(id) { document.getElementById(id).classList.add('invalide'); }
+function clearInvalide(id)   { document.getElementById(id).classList.remove('invalide'); }
+['c-email','c-pwd','i-prenom','i-nom','i-email','i-pwd','s-email','s-pwd']
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => clearInvalide(id));
+  });
+document.getElementById('form-conn').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  hideFb('fb-conn');
+  const email = document.getElementById('c-email').value.trim();
+  const pwd   = document.getElementById('c-pwd').value;
+  let ok = true;
+  if (!emailValide(email)) { marquerInvalide('c-email'); ok = false; }
+  if (pwd.length < 1)      { marquerInvalide('c-pwd');   ok = false; }
+  if (!ok) {
+    showFb('fb-conn', 'Veuillez remplir tous les champs correctement.', false);
+    return;
+  }
+  setLoading('btn-conn', true);
+  try {
+    const r = await ajax(this, 'connexion.php');
+    if (r.success) {
+      showFb('fb-conn', r.message, true);
+      setTimeout(() => window.location.href = r.redirect, 900);
+    } else {
+      showFb('fb-conn', r.message, false);
+    }
+  } catch {
+    showFb('fb-conn', 'Erreur réseau. Assurez-vous d\'utiliser un serveur (XAMPP).', false);
+  } finally {
+    setLoading('btn-conn', false);
+  }
+});
+//forumulaire inscri
+document.getElementById('form-ins').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  hideFb('fb-ins');
+  const prenom = document.getElementById('i-prenom').value.trim();
+  const nom    = document.getElementById('i-nom').value.trim();
+  const email  = document.getElementById('i-email').value.trim();
+  const pwd    = document.getElementById('i-pwd').value;
+  let ok = true;
+  if (prenom.length < 2)   { marquerInvalide('i-prenom'); ok = false; }
+  if (nom.length < 2)      { marquerInvalide('i-nom');    ok = false; }
+  if (!emailValide(email)) { marquerInvalide('i-email');  ok = false; }
+  if (pwd.length < 8)      { marquerInvalide('i-pwd');    ok = false; }
+  if (!/[A-Z]/.test(pwd))  { marquerInvalide('i-pwd');    ok = false; }
+  if (!/[0-9]/.test(pwd))  { marquerInvalide('i-pwd');    ok = false; }
+  if (!ok) {
+    showFb('fb-ins',
+      'Vérifiez : prénom/nom (min 2 car.), email valide, mot de passe (8+ car., 1 majuscule, 1 chiffre).',
+      false);
+    return;
+  }
+  setLoading('btn-ins', true);
+  try {
+    const r = await ajax(this, 'inscription.php');
+    if (r.success) {
+      showFb('fb-ins', r.message, true);
+      setTimeout(() => window.location.href = r.redirect, 900);
+    } else {
+      showFb('fb-ins', r.message, false);
+    }
+  } catch {
+    showFb('fb-ins', 'Erreur réseau. Assurez-vous d\'utiliser un serveur (XAMPP).', false);
+  } finally {
+    setLoading('btn-ins', false);
+  }
+});
+//formulaire suppression
+document.getElementById('form-sup').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  hideFb('fb-sup');
+  const email   = document.getElementById('s-email').value.trim();
+  const pwd     = document.getElementById('s-pwd').value;
+  const cochee  = document.getElementById('s-confirm').checked;
+  let ok = true;
+  if (!emailValide(email)) { marquerInvalide('s-email'); ok = false; }
+  if (pwd.length < 1)      { marquerInvalide('s-pwd');   ok = false; }
+  if (!ok) {
+    showFb('fb-sup', 'Veuillez remplir email et mot de passe.', false);
+    return;
+  }
+  if (!cochee) {
+    showFb('fb-sup', 'Vous devez cocher la case de confirmation pour continuer.', false);
+    return;
+  }
+  setLoading('btn-sup', true);
+  try {
+    const r = await ajax(this, 'suppression_compte.php');
+    if (r.success) {
+      showFb('fb-sup', r.message, true);
+      setTimeout(() => window.location.href = r.redirect, 1500);
+    } else {
+      showFb('fb-sup', r.message, false);
+    }
+  } catch {
+    showFb('fb-sup', 'Erreur réseau. Assurez-vous d\'utiliser un serveur (XAMPP).', false);
+  } finally {
+    setLoading('btn-sup', false);
+  }
+});
+</script>
+</body>
+</html>
