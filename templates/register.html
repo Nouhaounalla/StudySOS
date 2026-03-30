@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,51 +10,49 @@
 <body>
     <div class="card">
         <h1>StudySOS</h1>
-        <p class="subtitle">Creez votre compte gratuitement</p>
-        
+        <p class="subtitle">Créez votre compte gratuitement</p>
+
         <div class="input-group">
             <input type="text" id="username" placeholder=" " oninput="validate('username')" required>
-            <label for="username">Nom d'utilisateur <span style="color: red;">*</span></label>
+            <label for="username">Nom d'utilisateur <span style="color:red">*</span></label>
             <span class="error-msg" id="username-err"></span>
         </div>
         <div class="input-group">
             <input type="email" id="email" placeholder=" " oninput="validate('email')" required>
-            <label for="email">Email <span style="color: red;">*</span></label>
+            <label for="email">Email <span style="color:red">*</span></label>
             <span class="error-msg" id="email-err"></span>
         </div>
-         <div class="input-group">
+        <div class="input-group">
             <input type="text" id="phone" placeholder=" ">
             <label for="phone">Téléphone (optionnel)</label>
         </div>
         <div class="input-group">
             <input type="password" id="password" placeholder=" " oninput="validate('password')" required>
-            <label for="password">Mot de passe <span style="color: red;">*</span></label>
+            <label for="password">Mot de passe <span style="color:red">*</span></label>
             <span class="error-msg" id="password-err"></span>
         </div>
-         <p id="champ"><span style="color: red;">*</span>: champs obligatoires</p>
+        <p id="champ"><span style="color:red">*</span> : champs obligatoires</p>
+
         <button type="button" id="submit-btn" onclick="register()">S'inscrire</button>
         <div class="message" id="message"></div>
-        <div class="login-link">Deja inscrit? <a href="#">Connectez-vous</a></div>
-       
-        
+        <div class="login-link">Déjà inscrit ? <a href="/api/users/profile-page/">Connectez-vous</a></div>
     </div>
-     <script>
+
+    <script>
         function validate(field) {
             const input = document.getElementById(field);
-            const err = document.getElementById(field + '-err');
+            const err   = document.getElementById(field + '-err');
             const group = input.parentElement;
-
             let msg = '';
 
-            if (field === 'username') {
-                if (input.value.length < 3) msg = 'Au moins 3 caractères requis.';
-            }
-            if (field === 'email') {
-                if (!input.value.includes('@') || !input.value.includes('.'))
-                    msg = 'Adresse email invalide.';
-            }
+            if (field === 'username' && input.value.length < 3)
+                msg = 'Au moins 3 caractères requis.';
+            if (field === 'email' && (!input.value.includes('@') || !input.value.includes('.')))
+                msg = 'Adresse email invalide.';
             if (field === 'password') {
                 if (input.value.length < 8) msg = 'Au moins 8 caractères requis.';
+                else if (!/[A-Z]/.test(input.value)) msg = 'Au moins une lettre majuscule requise.';
+                else if (!/[0-9]/.test(input.value)) msg = 'Au moins un chiffre requis.';
             }
 
             if (msg) {
@@ -69,10 +67,15 @@
         }
 
         async function register() {
+            ['username', 'email', 'password'].forEach(validate);
+            if (document.querySelectorAll('.input-group.invalid').length > 0) return;
+
             const username = document.getElementById('username').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const msg = document.getElementById('message');
+            const email    = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const phone    = document.getElementById('phone').value.trim();
+            const msg      = document.getElementById('message');
+            const btn      = document.getElementById('submit-btn');
 
             if (!username || !email || !password) {
                 msg.textContent = 'Veuillez remplir tous les champs obligatoires.';
@@ -80,53 +83,48 @@
                 msg.style.display = 'block';
                 return;
             }
-            // Validate all fields first
-            ['username', 'email', 'password'].forEach(validate);
 
-            const invalids = document.querySelectorAll('.input-group.invalid');
-            if (invalids.length > 0) return;
-
-            const btn = document.getElementById('submit-btn');
-        
-
-            // Animate button
             btn.classList.add('loading');
             btn.textContent = 'Inscription...';
 
-            const data = {
-                username,
-                email,
-                phone: document.getElementById('phone').value,
-                password,
-            };
-
             try {
-                const response = await fetch('http://127.0.0.1:8000/api/users/register/', {
+                // 1. Create the account
+                const regRes = await fetch('/api/users/register/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ username, email, password, phone })
                 });
+                const regData = await regRes.json();
 
-                const result = await response.json();
+                if (!regRes.ok) {
+                    btn.textContent = "S'inscrire";
+                    btn.classList.remove('loading');
+                    msg.textContent = Object.values(regData).flat().join(' ');
+                    msg.className = 'message error';
+                    msg.style.display = 'block';
+                    return;
+                }
 
-                if (response.ok) {
+                // 2. Immediately log in to get JWT tokens
+                const tokenRes = await fetch('/api/token/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const tokenData = await tokenRes.json();
+
+                if (tokenRes.ok) {
+                    // Store tokens in localStorage for future requests
+                    localStorage.setItem('access', tokenData.access);
+                    localStorage.setItem('refresh', tokenData.refresh);
+                }
+
                 btn.textContent = 'Compte créé !';
                 btn.classList.add('success-btn');
                 msg.textContent = '🎉 Bienvenue ! Redirection...';
                 msg.className = 'message success';
                 msg.style.display = 'block';
-                setTimeout(() => {
-                    console.log('Redirecting with user_id:', result.user_id);
-                    window.location.href = `/api/users/profile-page/?user_id=${result.user_id}`;
-                }, 2000);
-                } else {
-                    btn.textContent = "S'inscrire";
-                    btn.classList.remove('loading');
-                    const errors = Object.values(result).flat().join(' ');
-                    msg.textContent = errors;
-                    msg.className = 'message error';
-                }
-                msg.style.display = 'block';
+                setTimeout(() => { window.location.href = '/api/users/profile-page/'; }, 2000);
 
             } catch (err) {
                 btn.textContent = "S'inscrire";

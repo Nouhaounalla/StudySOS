@@ -16,20 +16,17 @@
         <p class="subtitle">Complétez votre profil</p>
 
         <div class="input-group">
-            <input type="text" id="first_name" placeholder=" " oninput="updateProgress()" required>
+            <input type="text" id="first_name" placeholder=" " oninput="updateProgress()">
             <label for="first_name">Prénom</label>
         </div>
-
         <div class="input-group">
-            <input type="text" id="last_name" placeholder=" " oninput="updateProgress()" required>
+            <input type="text" id="last_name" placeholder=" " oninput="updateProgress()">
             <label for="last_name">Nom de famille</label>
         </div>
-
         <div class="input-group">
             <input type="date" id="date_of_birth" oninput="updateProgress()">
             <label for="date_of_birth" class="active">Date de naissance</label>
         </div>
-
         <div class="input-group">
             <select id="role" onchange="updateProgress()">
                 <option value="">-- Choisir --</option>
@@ -38,30 +35,72 @@
             </select>
             <label for="role" class="active">Je suis...</label>
         </div>
-
         <div class="input-group">
             <textarea id="purpose" placeholder=" " rows="3" oninput="updateProgress()"></textarea>
             <label for="purpose">Pourquoi rejoindre StudySOS ?</label>
         </div>
-
         <div class="input-group">
             <textarea id="bio" placeholder=" " rows="3" oninput="updateProgress()"></textarea>
             <label for="bio">Bio (optionnel)</label>
         </div>
 
+        <!-- Profile photo upload -->
+        <div class="input-group">
+            <label for="profile_photo" class="active">Photo de profil (optionnel)</label>
+            <input type="file" id="profile_photo" accept="image/*" onchange="updateProgress()">
+        </div>
+
         <button type="button" id="submit-btn" onclick="saveProfile()">Continuer →</button>
         <div class="message" id="message"></div>
+
+        <!-- Change password section -->
+        <hr style="margin:24px 0; opacity:.2">
+        <p class="subtitle" style="margin-bottom:12px">Changer de mot de passe</p>
+        <div class="input-group">
+            <input type="password" id="old_password" placeholder=" ">
+            <label for="old_password">Mot de passe actuel</label>
+        </div>
+        <div class="input-group">
+            <input type="password" id="new_password" placeholder=" " oninput="validateNewPassword()">
+            <label for="new_password">Nouveau mot de passe</label>
+            <span class="error-msg" id="new-pw-err"></span>
+        </div>
+        <button type="button" id="pw-btn" onclick="changePassword()">Modifier le mot de passe</button>
+        <div class="message" id="pw-message"></div>
     </div>
 
     <script>
-        const userId = new URLSearchParams(window.location.search).get('user_id');
-
+        const ACCESS_TOKEN = localStorage.getItem('access');
         const fields = ['first_name', 'last_name', 'date_of_birth', 'role', 'purpose'];
+
+        // If there is no token, the user is not logged in — redirect to register
+        if (!ACCESS_TOKEN) {
+            window.location.href = '/api/users/';
+        }
+
+        function authHeaders() {
+            return {
+                'Authorization': 'Bearer ' + ACCESS_TOKEN,
+            };
+        }
 
         function updateProgress() {
             const filled = fields.filter(f => document.getElementById(f).value.trim() !== '').length;
-            const pct = (filled / fields.length) * 100;
-            document.getElementById('progress-fill').style.width = pct + '%';
+            document.getElementById('progress-fill').style.width = (filled / fields.length * 100) + '%';
+        }
+
+        function validateNewPassword() {
+            const val = document.getElementById('new_password').value;
+            const err = document.getElementById('new-pw-err');
+            if (val.length > 0 && val.length < 8) {
+                err.textContent = 'Au moins 8 caractères requis.';
+            } else if (val.length >= 8 && !/[A-Z]/.test(val)) {
+                err.textContent = 'Au moins une lettre majuscule requise.';
+            } else if (val.length >= 8 && !/[0-9]/.test(val)) {
+                err.textContent = 'Au moins un chiffre requis.';
+            } else {
+                err.textContent = '';
+            }
         }
 
         async function saveProfile() {
@@ -69,8 +108,8 @@
             const msg = document.getElementById('message');
 
             const first_name = document.getElementById('first_name').value.trim();
-            const last_name = document.getElementById('last_name').value.trim();
-            const role = document.getElementById('role').value;
+            const last_name  = document.getElementById('last_name').value.trim();
+            const role       = document.getElementById('role').value;
 
             if (!first_name || !last_name || !role) {
                 msg.textContent = 'Prénom, nom et rôle sont obligatoires.';
@@ -82,20 +121,22 @@
             btn.textContent = 'Enregistrement...';
             btn.classList.add('loading');
 
-            const data = {
-                first_name,
-                last_name,
-                date_of_birth: document.getElementById('date_of_birth').value || null,
-                role,
-                purpose: document.getElementById('purpose').value.trim(),
-                bio: document.getElementById('bio').value.trim(),
-            };
+            // Use FormData to support the photo file upload
+            const formData = new FormData();
+            formData.append('first_name', first_name);
+            formData.append('last_name', last_name);
+            formData.append('role', role);
+            formData.append('date_of_birth', document.getElementById('date_of_birth').value || '');
+            formData.append('purpose', document.getElementById('purpose').value.trim());
+            formData.append('bio', document.getElementById('bio').value.trim());
+            const photoFile = document.getElementById('profile_photo').files[0];
+            if (photoFile) formData.append('profile_photo', photoFile);
 
             try {
-                const response = await fetch(`http://127.0.0.1:8000/api/users/profile/${userId}/`, {
+                const response = await fetch('/api/users/profile/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    headers: authHeaders(),   // no Content-Type — browser sets multipart boundary
+                    body: formData
                 });
 
                 const result = await response.json();
@@ -105,15 +146,17 @@
                     btn.classList.add('success-btn');
                     msg.textContent = 'Profil complété ! Bienvenue sur StudySOS !';
                     msg.className = 'message success';
-                    msg.style.display = 'block';
+                } else if (response.status === 401) {
+                    msg.textContent = 'Session expirée. Veuillez vous reconnecter.';
+                    msg.className = 'message error';
+                    setTimeout(() => { window.location.href = '/api/users/'; }, 2000);
                 } else {
                     btn.textContent = 'Continuer →';
                     btn.classList.remove('loading');
-                    const errors = Object.values(result).flat().join(' ');
-                    msg.textContent = errors;
+                    msg.textContent = Object.values(result).flat().join(' ');
                     msg.className = 'message error';
-                    msg.style.display = 'block';
                 }
+                msg.style.display = 'block';
 
             } catch (err) {
                 btn.textContent = 'Continuer →';
@@ -121,6 +164,51 @@
                 msg.textContent = 'Erreur de connexion au serveur.';
                 msg.className = 'message error';
                 msg.style.display = 'block';
+            }
+        }
+
+        async function changePassword() {
+            const btn     = document.getElementById('pw-btn');
+            const msg     = document.getElementById('pw-message');
+            const old_password = document.getElementById('old_password').value;
+            const new_password = document.getElementById('new_password').value;
+
+            if (!old_password || !new_password) {
+                msg.textContent = 'Veuillez remplir les deux champs.';
+                msg.className = 'message error';
+                msg.style.display = 'block';
+                return;
+            }
+            if (document.getElementById('new-pw-err').textContent) return;
+
+            btn.textContent = 'Modification...';
+
+            try {
+                const response = await fetch('/api/users/change-password/', {
+                    method: 'POST',
+                    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ old_password, new_password })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    msg.textContent = 'Mot de passe modifié avec succès !';
+                    msg.className = 'message success';
+                    document.getElementById('old_password').value = '';
+                    document.getElementById('new_password').value = '';
+                } else {
+                    msg.textContent = Object.values(result).flat().join(' ');
+                    msg.className = 'message error';
+                }
+                msg.style.display = 'block';
+                btn.textContent = 'Modifier le mot de passe';
+
+            } catch (err) {
+                msg.textContent = 'Erreur de connexion au serveur.';
+                msg.className = 'message error';
+                msg.style.display = 'block';
+                btn.textContent = 'Modifier le mot de passe';
             }
         }
     </script>
