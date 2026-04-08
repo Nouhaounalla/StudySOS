@@ -8,14 +8,7 @@ body {
     align-items: center;
     min-height: 100vh;
 }
-#champ {
-    font-size: small;
-    text-align: left;
-    margin-top: 12px;
-    margin-bottom: 10px;
-    font-size: 12px;
-    color: #888;
-}
+
 .card {
     background: white;
     padding: 40px;
@@ -37,6 +30,7 @@ p.subtitle {
     font-size: 14px;
 }
 
+/* Floating label input group */
 .input-group {
     position: relative;
     margin-bottom: 24px;
@@ -62,6 +56,8 @@ p.subtitle {
     pointer-events: none;
     transition: all 0.2s ease;
 }
+
+/* Float label up when input is focused or has content */
 .input-group input:focus + label,
 .input-group input:not(:placeholder-shown) + label {
     top: 6px;
@@ -76,10 +72,12 @@ p.subtitle {
     border-color: #00d2a8;
 }
 
+/* Valid state */
 .input-group.valid input {
     border-color: #38ef7d;
 }
 
+/* Invalid state */
 .input-group.invalid input {
     border-color: #e74c3c;
 }
@@ -92,6 +90,7 @@ p.subtitle {
     min-height: 16px;
 }
 
+/* Button */
 button {
     width: 100%;
     padding: 13px;
@@ -130,7 +129,7 @@ button.success-btn {
     50%       { opacity: 0.5;  }
 }
 
-
+/* Message */
 .message {
     margin-top: 16px;
     padding: 10px;
@@ -155,5 +154,47 @@ button.success-btn {
     text-decoration: none;
     font-weight: bold;
 }
+/* === ANIMATION STYLES === */
+
+.hidden {
+    display: none;
+}
+
+.slide-in-left {
+    animation: slideInLeft 0.45s forwards ease-out;
+}
+
+.slide-out-left {
+    animation: slideOutLeft 0.45s forwards ease-in;
+}
+
+.slide-in-right {
+    animation: slideInRight 0.45s forwards ease-out;
+}
+
+.slide-out-right {
+    animation: slideOutRight 0.45s forwards ease-in;
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(60px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutLeft {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(-60px); opacity: 0; }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(-60px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(60px); opacity: 0; }
+}
+
 
 .login-link a:hover { text-decoration: underline; }
