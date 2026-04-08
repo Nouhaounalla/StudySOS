@@ -4,7 +4,12 @@ import os
 
 load_dotenv()  # Load .env file
 
+from datetime import timedelta
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ✅ SECURITY

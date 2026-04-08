@@ -38,7 +38,7 @@
 
     <button id="submit-btn" onclick="register()">S'inscrire</button>
 
-    <div class="message" id="message"></div>
+    <div class="message" id="msg-connexion"></div>
 
     <div class="login-link">Déjà inscrit ?
         <a href="#" id="show-login">Se connecter</a>
@@ -59,7 +59,7 @@
         <label for="login-password">Mot de passe</label>
     </div>
 
-    <button onclick="login()">Se connecter</button>
+    <button type="button" id="btn-connexion" onclick="login()">Se connecter</button>
 
     <div class="login-link">Pas encore de compte ?
         <a href="#" id="show-register">Créer un compte</a>
@@ -191,25 +191,53 @@ document.getElementById("show-register").onclick = function (e) {
             }
         }
         
-async function login() {
-    const email = document.getElementById('login-email').value;
+        async function login() {
+    const email    = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
+    const msg      = document.getElementById('msg-connexion');
+    const btn      = document.getElementById('btn-connexion');
 
-    const response = await fetch("http://127.0.0.1:8000/api/register/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-    });
+    if (!email || !password) {
+        msg.textContent = 'Veuillez remplir tous les champs.';
+        msg.className = 'message error';
+        msg.style.display = 'block';
+        return;
+    }
 
-    const result = await response.json();
+    btn.classList.add('loading');
+    btn.textContent = 'Connexion...';
 
-    if (response.ok) {
-        alert("Connexion réussie !");
-        window.location.href = "/api/profile-page/";
+    try {
+        const tokenRes = await fetch('/api/token/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const tokenData = await tokenRes.json();
 
-        // Redirect later to dashboard etc...
-    } else {
-        alert("Email ou mot de passe incorrect");
+        if (tokenRes.ok) {
+            localStorage.setItem('access', tokenData.access);
+            localStorage.setItem('refresh', tokenData.refresh);
+            btn.textContent = '✅ Connecté !';
+            btn.classList.add('success-btn');
+            msg.textContent = 'Bienvenue ! Redirection...';
+            msg.className = 'message success';
+            msg.style.display = 'block';
+            setTimeout(() => { window.location.href = '/api/users/profile-page/'; }, 1500);
+        } else {
+            btn.textContent = 'Se connecter';
+            btn.classList.remove('loading');
+            msg.textContent = 'Email ou mot de passe incorrect.';
+            msg.className = 'message error';
+            msg.style.display = 'block';
+        }
+
+    } catch (e) {
+        btn.textContent = 'Se connecter';
+        btn.classList.remove('loading');
+        msg.textContent = 'Erreur de connexion au serveur.';
+        msg.className = 'message error';
+        msg.style.display = 'block';
     }
 }
 
