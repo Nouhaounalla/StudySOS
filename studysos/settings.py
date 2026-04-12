@@ -1,21 +1,13 @@
-"""
-Django settings for studysos project.
-"""
-
 from pathlib import Path
-from decouple import config
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ── Security ──────────────────────────────────────────────────────────────────
-# SECRET_KEY is read from .env — never hardcode it here.
-SECRET_KEY = config('SECRET_KEY', default='change-me-in-production')
+SECRET_KEY = os.getenv('SECRET_KEY')
+DEBUG = os.getenv('DEBUG') == 'True'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-DEBUG = config('DEBUG', default=True, cast=bool)
-
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost').split(',')
-
-# ── Application definition ───────────────────────────────────────────────────
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -40,10 +32,15 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# Allow requests from the frontend during development
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
 CORS_ALLOWED_ORIGINS = [
-    'http://127.0.0.1:8000',
     'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 ROOT_URLCONF = 'studysos.urls'
@@ -65,59 +62,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'studysos.wsgi.application'
 
-# ── Database ──────────────────────────────────────────────────────────────────
+from os import getenv
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DB_NAME', default='studysos'),
-        'USER': config('DB_USER', default='root'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='3306'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': getenv('PGDATABASE'),
+        'USER': getenv('PGUSER'),
+        'PASSWORD': getenv('PGPASSWORD'),
+        'HOST': getenv('PGHOST'),
+        'PORT': getenv('PGPORT', 5432),
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+        'DISABLE_SERVER_SIDE_CURSORS': True,
+        'CONN_HEALTH_CHECKS': True,
     }
 }
 
-# ── Django REST Framework ─────────────────────────────────────────────────────
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    # Throttle login attempts to slow down brute-force attacks
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '20/hour',
-        'user': '200/hour',
-    },
-}
-
-# ── Password validation ───────────────────────────────────────────────────────
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-     'OPTIONS': {'min_length': 8}},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
-# ── Custom user model ─────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'users.User'
 
-# ── Internationalisation ──────────────────────────────────────────────────────
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Africa/Tunis'
 USE_I18N = True
 USE_TZ = True
 
-# ── Static & media files ──────────────────────────────────────────────────────
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-
-# Profile photos are stored here
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -1,0 +1,122 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySOS — Questions</title>
+    <link rel="stylesheet" href="{% static 'css/questions.css' %}">
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>StudySOS</h1>
+        <p class="subtitle">Questions des étudiants</p>
+    </div>
+
+    <!-- Filtre statut — tâche #13 -->
+    <div class="filters">
+        <button class="filter-btn active" onclick="filterQuestions('all', this)">Toutes</button>
+        <button class="filter-btn" onclick="filterQuestions('unresolved', this)">Non résolues</button>
+        <button class="filter-btn" onclick="filterQuestions('resolved', this)">Résolues</button>
+    </div>
+
+    <div id="questions-list"></div>
+    <div id="message"></div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('access');
+if (!TOKEN) window.location.href = '/login/';
+
+function authHeaders() {
+    return {
+        'Authorization': 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json'
+    };
+}
+
+// Récupère l'ID de l'utilisateur connecté
+const CURRENT_USER_ID = parseInt(localStorage.getItem('user_id'));
+
+async function loadQuestions(status = 'all') {
+    const url = status === 'all'
+        ? '/api/questions/'
+        : `/api/questions/?status=${status}`;
+
+    try {
+        const res = await fetch(url, { headers: authHeaders() });
+        if (res.status === 401) {
+            window.location.href = '/login/';
+            return;
+        }
+        const questions = await res.json();
+        renderQuestions(questions);
+    } catch (err) {
+        document.getElementById('message').innerText = 'Erreur de chargement';
+    }
+}
+
+function renderQuestions(questions) {
+    const container = document.getElementById('questions-list');
+    if (questions.length === 0) {
+        container.innerHTML = '<p class="empty">Aucune question trouvée.</p>';
+        return;
+    }
+
+    container.innerHTML = questions.map(q => `
+        <div class="question-card ${q.is_resolved ? 'resolved' : ''}">
+            <div class="question-header">
+                <div>
+                    <span class="subject-badge">${q.subject}</span>
+                    <h3>${q.title}</h3>
+                </div>
+                <div class="status-area">
+                    ${q.is_resolved
+                        ? '<span class="status-resolved">Résolue ✓</span>'
+                        : q.user === CURRENT_USER_ID
+                            ? `<button class="resolve-btn" onclick="markResolved(${q.id}, this)">Marquer résolue</button>`
+                            : '<span class="status-pending">En attente</span>'
+                    }
+                </div>
+            </div>
+            <p class="question-desc">${q.description}</p>
+            <div class="question-footer">
+                <span class="answers-count">${q.answers ? q.answers.length : 0} réponse(s)</span>
+                <a href="/question/${q.id}/" class="voir-btn">Voir les réponses →</a>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Tâche #10 — Marquer comme résolue
+async function markResolved(questionId, btn) {
+    btn.disabled = true;
+    btn.innerText = '...';
+    try {
+        const res = await fetch(`/api/questions/${questionId}/resolve/`, {
+            method: 'PATCH',
+            headers: authHeaders()
+        });
+        if (res.ok) {
+            btn.closest('.question-card').classList.add('resolved');
+            btn.closest('.status-area').innerHTML = '<span class="status-resolved">Résolue ✓</span>';
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerText = 'Marquer résolue';
+    }
+}
+
+// Tâche #13 — Filtre
+function filterQuestions(status, clickedBtn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    clickedBtn.classList.add('active');
+    loadQuestions(status);
+}
+
+loadQuestions();
+</script>
+</body>
+</html>

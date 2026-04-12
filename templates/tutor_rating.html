@@ -1,0 +1,228 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySOS — Évaluer un tuteur</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f9b8e, #00d2a8, #38ef7d);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 { color: white; font-size: 2rem; }
+        .header p { color: rgba(255,255,255,0.85); margin-top: 0.3rem; }
+        .nav { text-align: center; margin-bottom: 1rem; }
+        .nav a { color: white; text-decoration: none; font-size: 14px; }
+
+        .tutor-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .tutor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .tutor-name { font-size: 1.1rem; font-weight: bold; color: #1f2937; }
+        .tutor-email { font-size: 0.85rem; color: #9ca3af; }
+        .average-badge {
+            background: #e0faf5;
+            color: #0f9b8e;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .stars {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 1rem;
+        }
+        .star {
+            font-size: 28px;
+            cursor: pointer;
+            color: #d1d5db;
+            transition: color 0.15s;
+        }
+        .star.active { color: #f59e0b; }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 1rem;
+            font-family: Arial, sans-serif;
+        }
+        textarea:focus { outline: none; border-color: #0f9b8e; }
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #0f9b8e, #38ef7d);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .submit-btn:hover { opacity: 0.88; }
+        .msg { margin-top: 10px; text-align: center; font-size: 14px; }
+        .empty {
+            text-align: center;
+            color: #9ca3af;
+            padding: 3rem;
+            background: white;
+            border-radius: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>StudySOS</h1>
+        <p>Évaluez vos tuteurs</p>
+    </div>
+    <div class="nav"><a href="/questions-page/">← Retour aux questions</a></div>
+    <div id="tutors-list"></div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('access');
+if (!TOKEN) window.location.href = '/login/';
+
+function authHeaders() {
+    return {
+        'Authorization': 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json'
+    };
+}
+
+async function loadTutors() {
+    try {
+        const res = await fetch('/api/users/tutors/', { headers: authHeaders() });
+        const tutors = await res.json();
+        renderTutors(tutors);
+    } catch (err) {
+        document.getElementById('tutors-list').innerHTML =
+            '<div class="empty">Erreur de chargement des tuteurs.</div>';
+    }
+}
+
+async function getAverage(tutorId) {
+    try {
+        const res = await fetch(`/api/ratings/tutor/${tutorId}/`, { headers: authHeaders() });
+        const data = await res.json();
+        return data;
+    } catch { return { average: null, total: 0 }; }
+}
+
+async function renderTutors(tutors) {
+    const container = document.getElementById('tutors-list');
+    if (!tutors.length) {
+        container.innerHTML = '<div class="empty">Aucun tuteur disponible.</div>';
+        return;
+    }
+
+    for (const tutor of tutors) {
+        const avg = await getAverage(tutor.id);
+        const card = document.createElement('div');
+        card.className = 'tutor-card';
+        card.innerHTML = `
+            <div class="tutor-header">
+                <div>
+                    <div class="tutor-name">${tutor.first_name || ''} ${tutor.last_name || ''} ${!tutor.first_name && !tutor.last_name ? tutor.username : ''}</div>
+                    <div class="tutor-email">${tutor.email}</div>
+                </div>
+                <div class="average-badge" id="avg-${tutor.id}">
+                    ${avg.average ? '⭐ ' + avg.average + ' (' + avg.total + ' avis)' : 'Pas encore évalué'}
+                </div>
+            </div>
+            <div class="stars" id="stars-${tutor.id}">
+                ${[1,2,3,4,5].map(s => `
+                    <span class="star" onclick="setRating(${tutor.id}, ${s})" 
+                          onmouseover="hoverStars(${tutor.id}, ${s})"
+                          onmouseout="resetStars(${tutor.id})">★</span>
+                `).join('')}
+            </div>
+            <textarea id="comment-${tutor.id}" placeholder="Laissez un commentaire (optionnel)..."></textarea>
+            <button class="submit-btn" onclick="rateTutor(${tutor.id})">Envoyer l'évaluation</button>
+            <div class="msg" id="msg-${tutor.id}"></div>
+        `;
+        container.appendChild(card);
+    }
+}
+
+const ratings = {};
+
+function setRating(tutorId, score) {
+    ratings[tutorId] = score;
+    updateStars(tutorId, score);
+}
+
+function hoverStars(tutorId, score) {
+    updateStars(tutorId, score);
+}
+
+function resetStars(tutorId) {
+    updateStars(tutorId, ratings[tutorId] || 0);
+}
+
+function updateStars(tutorId, score) {
+    const stars = document.querySelectorAll(`#stars-${tutorId} .star`);
+    stars.forEach((star, i) => {
+        star.classList.toggle('active', i < score);
+    });
+}
+
+async function rateTutor(tutorId) {
+    const score = ratings[tutorId];
+    const comment = document.getElementById(`comment-${tutorId}`).value;
+    const msg = document.getElementById(`msg-${tutorId}`);
+
+    if (!score) {
+        msg.textContent = '⚠️ Choisissez une note !';
+        msg.style.color = 'orange';
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/ratings/tutor/', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ tutor: tutorId, score, comment })
+        });
+        if (res.ok) {
+            msg.textContent = '✅ Évaluation enregistrée !';
+            msg.style.color = '#0f9b8e';
+            const avg = await getAverage(tutorId);
+            document.getElementById(`avg-${tutorId}`).textContent =
+                avg.average ? '⭐ ' + avg.average + ' (' + avg.total + ' avis)' : 'Pas encore évalué';
+        } else {
+            const data = await res.json();
+            msg.textContent = '❌ ' + JSON.stringify(data);
+            msg.style.color = 'red';
+        }
+    } catch (err) {
+        msg.textContent = '❌ Erreur serveur';
+        msg.style.color = 'red';
+    }
+}
+
+loadTutors();
+</script>
+</body>
+</html>

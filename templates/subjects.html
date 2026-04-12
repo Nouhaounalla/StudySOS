@@ -1,0 +1,174 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySOS — Mes Matières</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f9b8e, #00d2a8, #38ef7d);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 480px;
+        }
+        h1 { color: #0f9b8e; margin-bottom: 8px; font-size: 28px; text-align: center; }
+        .subtitle { color: #888; margin-bottom: 28px; font-size: 14px; text-align: center; }
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .subject-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .subject-item:hover { border-color: #0f9b8e; background: #f0fdf9; }
+        .subject-item.selected {
+            border-color: #0f9b8e;
+            background: #e0faf5;
+        }
+        .subject-item input[type="checkbox"] { display: none; }
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .subject-item.selected .checkmark {
+            background: #0f9b8e;
+            border-color: #0f9b8e;
+            color: white;
+        }
+        .subject-name { font-size: 14px; color: #374151; font-weight: 500; }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #0f9b8e, #38ef7d);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.88; }
+        #message { margin-top: 16px; text-align: center; font-size: 14px; color: #0f9b8e; }
+        .nav { text-align: center; margin-bottom: 20px; }
+        .nav a { color: #0f9b8e; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>StudySOS</h1>
+    <p class="subtitle">Choisissez vos matières de compétence</p>
+    <div class="nav"><a href="/questions-page/">← Retour aux questions</a></div>
+
+    <div class="subjects-grid" id="subjects-grid"></div>
+
+    <button onclick="saveSubjects()">Enregistrer mes matières</button>
+    <div id="message"></div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('access');
+if (!TOKEN) window.location.href = '/login/';
+
+const SUBJECTS = [
+    'Mathématiques', 'Physique', 'Chimie', 'Informatique',
+    'Biologie', 'Histoire', 'Géographie', 'Anglais',
+    'Français', 'Économie', 'Philosophie', 'SVT'
+];
+
+let selected = new Set();
+
+function renderSubjects() {
+    const grid = document.getElementById('subjects-grid');
+    grid.innerHTML = SUBJECTS.map(s => `
+        <div class="subject-item ${selected.has(s) ? 'selected' : ''}"
+             onclick="toggleSubject('${s}', this)">
+            <div class="checkmark">${selected.has(s) ? '✓' : ''}</div>
+            <span class="subject-name">${s}</span>
+        </div>
+    `).join('');
+}
+
+function toggleSubject(subject, el) {
+    if (selected.has(subject)) {
+        selected.delete(subject);
+        el.classList.remove('selected');
+        el.querySelector('.checkmark').textContent = '';
+    } else {
+        selected.add(subject);
+        el.classList.add('selected');
+        el.querySelector('.checkmark').textContent = '✓';
+    }
+}
+
+async function loadSubjects() {
+    try {
+        const res = await fetch('/api/profile/subjects/', {
+            headers: { 'Authorization': 'Bearer ' + TOKEN }
+        });
+        const data = await res.json();
+        data.forEach(item => selected.add(item.subject));
+        renderSubjects();
+    } catch (err) {
+        renderSubjects();
+    }
+}
+
+async function saveSubjects() {
+    const msg = document.getElementById('message');
+    try {
+        const res = await fetch('/api/profile/subjects/', {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ subjects: Array.from(selected) })
+        });
+        if (res.ok) {
+            msg.textContent = '✅ Matières enregistrées !';
+            msg.style.color = '#0f9b8e';
+        } else {
+            msg.textContent = '❌ Erreur lors de l\'enregistrement';
+            msg.style.color = 'red';
+        }
+    } catch (err) {
+        msg.textContent = '❌ Erreur serveur';
+        msg.style.color = 'red';
+    }
+}
+
+loadSubjects();
+</script>
+</body>
+</html>

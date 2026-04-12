@@ -1,0 +1,227 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudySOS — Question</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f9b8e, #00d2a8, #38ef7d);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 750px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 1.5rem; }
+        .header h1 { color: white; font-size: 2rem; }
+        .nav { text-align: center; margin-bottom: 1rem; }
+        .nav a { color: white; text-decoration: none; font-size: 14px; }
+
+        .question-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-left: 5px solid #0f9b8e;
+        }
+        .question-card h2 { color: #1f2937; margin-bottom: 0.5rem; }
+        .question-card .subject {
+            background: #e0faf5;
+            color: #0f9b8e;
+            padding: 0.2rem 0.7rem;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 0.8rem;
+        }
+        .question-card p { color: #6b7280; line-height: 1.6; }
+        .resolved-badge {
+            background: #e0faf5;
+            color: #0f9b8e;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            float: right;
+        }
+
+        .answers-section h3 {
+            color: white;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        .answer-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .answer-author { font-size: 0.85rem; color: #9ca3af; margin-bottom: 0.5rem; }
+        .answer-content { color: #374151; line-height: 1.6; margin-bottom: 1rem; }
+        .answer-rating { display: flex; align-items: center; gap: 12px; }
+        .stars { display: flex; gap: 4px; }
+        .star {
+            font-size: 22px;
+            cursor: pointer;
+            color: #d1d5db;
+            transition: color 0.15s;
+        }
+        .star.active { color: #f59e0b; }
+        .avg-rating { font-size: 0.85rem; color: #9ca3af; }
+        .rate-btn {
+            padding: 6px 14px;
+            background: linear-gradient(135deg, #0f9b8e, #38ef7d);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .rate-btn:hover { opacity: 0.88; }
+        .rate-msg { font-size: 12px; color: #0f9b8e; margin-top: 6px; }
+        .empty {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header"><h1>StudySOS</h1></div>
+    <div class="nav"><a href="/questions-page/">← Retour aux questions</a></div>
+
+    <div id="question-container"></div>
+
+    <div class="answers-section">
+        <h3 id="answers-title">Réponses</h3>
+        <div id="answers-container"></div>
+    </div>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('access');
+if (!TOKEN) window.location.href = '/login/';
+
+function authHeaders() {
+    return {
+        'Authorization': 'Bearer ' + TOKEN,
+        'Content-Type': 'application/json'
+    };
+}
+
+const questionId = window.location.pathname.split('/').filter(Boolean).pop();
+const ratings = {};
+
+async function loadQuestion() {
+    try {
+        const res = await fetch('/api/questions/', { headers: authHeaders() });
+        const questions = await res.json();
+        const question = questions.find(q => q.id == questionId);
+
+        if (!question) {
+            document.getElementById('question-container').innerHTML =
+                '<div class="question-card"><p>Question introuvable.</p></div>';
+            return;
+        }
+
+        document.getElementById('question-container').innerHTML = `
+            <div class="question-card">
+                ${question.is_resolved ? '<span class="resolved-badge">✓ Résolue</span>' : ''}
+                <span class="subject">${question.subject}</span>
+                <h2>${question.title}</h2>
+                <p>${question.description}</p>
+            </div>
+        `;
+
+        const answers = question.answers || [];
+        document.getElementById('answers-title').textContent =
+            `Réponses (${answers.length})`;
+
+        if (!answers.length) {
+            document.getElementById('answers-container').innerHTML =
+                '<div class="empty">Aucune réponse pour l\'instant.</div>';
+            return;
+        }
+
+        document.getElementById('answers-container').innerHTML = answers.map(a => `
+            <div class="answer-card">
+                <div class="answer-author">Répondu par l'utilisateur #${a.user}</div>
+                <div class="answer-content">${a.content}</div>
+                <div class="answer-rating">
+                    <div class="stars" id="stars-${a.id}">
+                        ${[1,2,3,4,5].map(s => `
+                            <span class="star"
+                                onclick="setRating(${a.id}, ${s})"
+                                onmouseover="hoverStars(${a.id}, ${s})"
+                                onmouseout="resetStars(${a.id})">★</span>
+                        `).join('')}
+                    </div>
+                    <span class="avg-rating" id="avg-${a.id}">
+                        ${a.average_rating ? '⭐ ' + a.average_rating : 'Pas encore noté'}
+                    </span>
+                    <button class="rate-btn" onclick="rateAnswer(${a.id})">Noter</button>
+                </div>
+                <div class="rate-msg" id="msg-${a.id}"></div>
+            </div>
+        `).join('');
+
+    } catch (err) {
+        document.getElementById('question-container').innerHTML =
+            '<div class="question-card"><p>Erreur de chargement.</p></div>';
+    }
+}
+
+function setRating(answerId, score) {
+    ratings[answerId] = score;
+    updateStars(answerId, score);
+}
+
+function hoverStars(answerId, score) { updateStars(answerId, score); }
+function resetStars(answerId) { updateStars(answerId, ratings[answerId] || 0); }
+
+function updateStars(answerId, score) {
+    document.querySelectorAll(`#stars-${answerId} .star`).forEach((star, i) => {
+        star.classList.toggle('active', i < score);
+    });
+}
+
+async function rateAnswer(answerId) {
+    const score = ratings[answerId];
+    const msg = document.getElementById(`msg-${answerId}`);
+    if (!score) {
+        msg.textContent = '⚠️ Choisissez une note !';
+        msg.style.color = 'orange';
+        return;
+    }
+    try {
+        const res = await fetch('/api/ratings/answer/', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ answer: answerId, score })
+        });
+        if (res.ok) {
+            msg.textContent = '✅ Note enregistrée !';
+            msg.style.color = '#0f9b8e';
+        } else {
+            const data = await res.json();
+            msg.textContent = '❌ ' + JSON.stringify(data);
+            msg.style.color = 'red';
+        }
+    } catch (err) {
+        msg.textContent = '❌ Erreur serveur';
+        msg.style.color = 'red';
+    }
+}
+
+loadQuestion();
+</script>
+</body>
+</html>

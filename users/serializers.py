@@ -1,58 +1,64 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
+from django.db.models import Avg
+from .models import Question, Answer, RatingAnswer, RatingTutor, UserSubject
 
 User = get_user_model()
 
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, validators=[validate_password])
-
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'phone']
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            phone=validated_data.get('phone', '')
-        )
-        return user
+        fields = ['id', 'email', 'username', 'first_name', 'last_name',
+                  'phone', 'role', 'bio', 'purpose', 'profile_photo']
 
 
-class ProfileSerializer(serializers.ModelSerializer):
-    profile_photo = serializers.ImageField(required=False)
-
+class RatingAnswerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = [
-            'first_name', 'last_name', 'date_of_birth',
-            'role', 'purpose', 'bio', 'profile_photo'
-        ]
+        model = RatingAnswer
+        fields = ['id', 'answer', 'score']
 
-
-class UserMeSerializer(serializers.ModelSerializer):
-    """Read-only serializer — returns the full profile of the logged-in user."""
-    profile_photo = serializers.ImageField(required=False)
-
-    class Meta:
-        model = User
-        fields = [
-            'id', 'username', 'email', 'phone',
-            'first_name', 'last_name', 'date_of_birth',
-            'role', 'purpose', 'bio', 'profile_photo'
-        ]
-        read_only_fields = fields
-
-
-class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
-
-    def validate_old_password(self, value):
+    def validate(self, data):
         user = self.context['request'].user
-        if not user.check_password(value):
-            raise serializers.ValidationError("Mot de passe actuel incorrect.")
-        return value
+        if data['answer'].user == user:
+            raise serializers.ValidationError("Vous ne pouvez pas évaluer votre propre réponse.")
+        return data
+
+
+class AnswerSerializer(serializers.ModelSerializer):
+    average_rating = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Answer
+        fields = ['id', 'content', 'user', 'created_at', 'average_rating']
+
+    def get_average_rating(self, obj):
+        avg = obj.ratings.aggregate(Avg('score'))['score__avg']
+        return round(avg, 1) if avg else None
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    answers = AnswerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'title', 'description', 'subject',
+                  'is_resolved', 'user', 'created_at', 'answers']
+
+
+class RatingTutorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RatingTutor
+        fields = ['id', 'tutor', 'score', 'comment']
+
+    def validate(self, data):
+        user = self.context['request'].user
+        if data['tutor'] == user:
+            raise serializers.ValidationError("Vous ne pouvez pas vous évaluer vous-même.")
+        return data
+
+
+class UserSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSubject
+        fields = ['id', 'subject']
