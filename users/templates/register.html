@@ -66,181 +66,166 @@
     </div>
 </div>
 
-
-
-
-    <script>
-        const regBox = document.getElementById("register-box");
-const logBox = document.getElementById("login-box");
-
-document.getElementById("show-login").onclick = function (e) {
-    e.preventDefault();
-
-    // Animate register box out to the left
-    regBox.classList.remove("slide-in-right", "slide-in-left");
-    regBox.classList.add("slide-out-left");
-
-    setTimeout(() => {
-        regBox.style.display = "none";
-        logBox.style.display = "block";
-
-        // Animate login box in from the right
-        logBox.classList.remove("slide-out-right", "slide-out-left");
-        logBox.classList.add("slide-in-right");
-    }, 450);
-};
-
-document.getElementById("show-register").onclick = function (e) {
-    e.preventDefault();
-
-    // Animate login box out to the right
-    logBox.classList.remove("slide-in-left", "slide-in-right");
-    logBox.classList.add("slide-out-right");
-
-    setTimeout(() => {
-        logBox.style.display = "none";
-        regBox.style.display = "block";
-
-        // Animate register box in from the left
-        regBox.classList.remove("slide-out-left", "slide-out-right");
-        regBox.classList.add("slide-in-left");
-    }, 450);
-};
-
-        function validate(field) {
-            const input = document.getElementById(field);
-            const err = document.getElementById(field + '-err');
-            const group = input.parentElement;
-
-            let msg = '';
-
-            if (field === 'username') {
-                if (input.value.length < 3) msg = 'Au moins 3 caractères requis.';
-            }
-            if (field === 'email') {
-                if (!input.value.includes('@') || !input.value.includes('.'))
-                    msg = 'Adresse email invalide.';
-            }
-            if (field === 'password') {
-                if (input.value.length < 8) msg = 'Au moins 8 caractères requis.';
-            }
-
-            if (msg) {
-                err.textContent = msg;
-                group.classList.add('invalid');
-                group.classList.remove('valid');
-            } else {
-                err.textContent = '';
-                group.classList.remove('invalid');
-                group.classList.add('valid');
+<script>
+    const API_BASE_URL = 'http://127.0.0.1:8000/api/users';
+    
+    function getCsrfToken() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
-
-        async function register() {
-            // Validate all fields first
-            ['username', 'email', 'password'].forEach(validate);
-
-            const invalids = document.querySelectorAll('.input-group.invalid');
-            if (invalids.length > 0) return;
-
-            const btn = document.getElementById('submit-btn');
-            const msg = document.getElementById('message');
-
-            // Animate button
-            btn.classList.add('loading');
-            btn.textContent = 'Inscription...';
-
-            const data = {
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value,
-                password: document.getElementById('password').value,
-            };
-
-            try {
-                const response = await fetch('http://127.0.0.1:8000/api/register/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    btn.textContent = 'Compte créé !';
-                    window.location.href = "/api/profile-page/";
-                    btn.classList.remove('loading');
-                    btn.classList.add('success-btn');
-                    msg.textContent = 'Bienvenue sur StudySOS !';
-                    msg.className = 'message success';
-                } else {
-                    btn.textContent = "S'inscrire";
-                    btn.classList.remove('loading');
-                    const errors = Object.values(result).flat().join(' ');
-                    msg.textContent = errors;
-                    msg.className = 'message error';
-                }
-                msg.style.display = 'block';
-
-            } catch (err) {
-                btn.textContent = "S'inscrire";
-                btn.classList.remove('loading');
-                msg.textContent = 'Erreur de connexion au serveur.';
-                msg.className = 'message error';
-                msg.style.display = 'block';
+        return cookieValue;
+    }
+    
+    document.getElementById('show-login').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('register-box').style.display = 'none';
+        document.getElementById('login-box').style.display = 'block';
+    });
+    
+    document.getElementById('show-register').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('login-box').style.display = 'none';
+        document.getElementById('register-box').style.display = 'block';
+    });
+    
+    function validate(field) {
+        const value = document.getElementById(field).value;
+        const errElement = document.getElementById(field + '-err');
+        let isValid = true;
+        let message = '';
+        
+        if (field === 'username') {
+            if (value.length < 3) {
+                isValid = false;
+                message = 'Minimum 3 caractères';
+            }
+        } else if (field === 'email') {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                isValid = false;
+                message = 'Email invalide';
+            }
+        } else if (field === 'password') {
+            if (value.length < 8) {
+                isValid = false;
+                message = 'Minimum 8 caractères';
             }
         }
         
-        async function login() {
-    const email    = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    const msg      = document.getElementById('msg-connexion');
-    const btn      = document.getElementById('btn-connexion');
-
-    if (!email || !password) {
-        msg.textContent = 'Veuillez remplir tous les champs.';
-        msg.className = 'message error';
-        msg.style.display = 'block';
-        return;
-    }
-
-    btn.classList.add('loading');
-    btn.textContent = 'Connexion...';
-
-    try {
-        const tokenRes = await fetch('/api/token/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const tokenData = await tokenRes.json();
-
-        if (tokenRes.ok) {
-            localStorage.setItem('access', tokenData.access);
-            localStorage.setItem('refresh', tokenData.refresh);
-            btn.textContent = '✅ Connecté !';
-            btn.classList.add('success-btn');
-            msg.textContent = 'Bienvenue ! Redirection...';
-            msg.className = 'message success';
-            msg.style.display = 'block';
-            setTimeout(() => { window.location.href = '/api/users/profile-page/'; }, 1500);
-        } else {
-            btn.textContent = 'Se connecter';
-            btn.classList.remove('loading');
-            msg.textContent = 'Email ou mot de passe incorrect.';
-            msg.className = 'message error';
-            msg.style.display = 'block';
+        if (errElement) {
+            errElement.textContent = message;
         }
-
-    } catch (e) {
-        btn.textContent = 'Se connecter';
-        btn.classList.remove('loading');
-        msg.textContent = 'Erreur de connexion au serveur.';
-        msg.className = 'message error';
-        msg.style.display = 'block';
+        return isValid;
     }
-}
-
-    </script>
+    
+    async function register() {
+        const isUsernameValid = validate('username');
+        const isEmailValid = validate('email');
+        const isPasswordValid = validate('password');
+        
+        if (!isUsernameValid || !isEmailValid || !isPasswordValid) {
+            showMessage('Veuillez corriger les erreurs', 'error');
+            return;
+        }
+        
+        const data = {
+            username: document.getElementById('username').value,
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+            phone: document.getElementById('phone').value || ''
+        };
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/register/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showMessage('Inscription réussie ! Connexion...', 'success');
+                setTimeout(async () => {
+                    await login(data.email, data.password);
+                }, 1000);
+            } else {
+                showMessage(result.message || result.detail || 'Erreur lors de l\'inscription', 'error');
+            }
+        } catch (error) {
+            console.error('Register error:', error);
+            showMessage('Erreur de connexion au serveur', 'error');
+        }
+    }
+    
+    async function login(email = null, password = null) {
+        const loginEmail = email || document.getElementById('login-email').value;
+        const loginPassword = password || document.getElementById('login-password').value;
+        
+        if (!loginEmail || !loginPassword) {
+            showMessage('Veuillez remplir tous les champs', 'error', 'login');
+            return false;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/login/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    email: loginEmail, 
+                    password: loginPassword 
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showMessage('Connexion réussie !', 'success', 'login');
+                const redirectUrl = result.redirect_url || '/api/users/profile_info/';
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 500);
+                return true;
+            } else {
+                showMessage(result.message || result.detail || 'Email ou mot de passe incorrect', 'error', 'login');
+                return false;
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showMessage('Erreur de connexion au serveur', 'error', 'login');
+            return false;
+        }
+    }
+    
+    function showMessage(msg, type, context = 'register') {
+        const msgId = context === 'login' ? 'msg-connexion' : 'msg-connexion';
+        const element = document.getElementById(msgId);
+        if (element) {
+            element.textContent = msg;
+            element.className = 'message ' + type;
+            setTimeout(() => {
+                element.textContent = '';
+                element.className = 'message';
+            }, 5000);
+        }
+    }
+</script>
 </body>
 </html>

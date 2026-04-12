@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}StudySOS — Compléter le Profil{% endblock %}
+
+{% block extra_css %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/profile_info.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <div class="profile-card">
+       <div class="avatar-container">
+    <img id="avatar-img" src="https://ui-avatars.com/api/?name=User&background=0f9b8e&color=fff&size=128" alt="Avatar" class="avatar">
+    <label for="profile_photo" class="avatar-edit">✏️</label>
+    <input type="file" id="profile_photo" accept="image/*" style="display:none" onchange="uploadPhoto(this)">
+</div>
+        <h2 id="profile-name">Chargement...</h2>
+        <p id="profile-role" class="role-badge"></p>
+        <p id="profile-email" class="profile-email"></p>
+        <p id="profile-bio" class="profile-bio"></p>
+        <div class="profile-stats">
+            <div class="stat">
+                <span class="stat-number">0</span>
+                <span class="stat-label">Questions</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number">0</span>
+                <span class="stat-label">Réponses</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number">0</span>
+                <span class="stat-label">Points</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-form">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p class="progress-label" id="progress-label">Complétez votre profil</p>
+
+        <h3>Informations personnelles</h3>
+
+        <div class="form-row">
+            <div class="input-group">
+                <label>Prénom</label>
+                <input type="text" id="first_name" placeholder="Votre prénom" oninput="updateProgress()">
+            </div>
+            <div class="input-group">
+                <label>Nom</label>
+                <input type="text" id="last_name" placeholder="Votre nom" oninput="updateProgress()">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Date de naissance</label>
+            <input type="date" id="date_of_birth" oninput="updateProgress()">
+        </div>
+
+        <div class="input-group">
+            <label>Je suis...</label>
+            <div class="role-buttons">
+                <button type="button" class="role-btn active" id="btn-etudiant" onclick="setRole('etudiant')"> Étudiant</button>
+                <button type="button" class="role-btn" id="btn-tuteur" onclick="setRole('tuteur')"> Tuteur</button>
+            </div>
+            <input type="hidden" id="role" value="etudiant">
+        </div>
+
+        <div class="input-group">
+            <label>Pourquoi rejoindre StudySOS ?</label>
+            <textarea id="purpose" rows="3" placeholder="Décrivez vos objectifs..." oninput="updateProgress()"></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>Bio (optionnel)</label>
+            <textarea id="bio" rows="3" placeholder="Parlez de vous..."></textarea>
+        </div>
+
+        <button type="button" id="save-btn" onclick="saveProfile()">Sauvegarder le profil</button>
+        <div class="message" id="message"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadProfile();
+});
+
+async function loadProfile() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile/`, {
+            credentials: 'include',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        
+        if (response.status === 401) {
+            window.location.href = '/api/users/';
+            return;
+        }
+        
+        if (response.ok) {
+            const data = await response.json();
+            populateProfile(data);
+        }
+    } catch (error) {
+        console.error('Load profile error:', error);
+    }
+}
+
+function populateProfile(data) {
+    document.getElementById('profile-name').textContent = data.username || 'Utilisateur';
+    document.getElementById('profile-email').textContent = data.email || '';
+    document.getElementById('profile-bio').textContent = data.bio || '';
+    
+    const role = data.role || 'etudiant';
+    const roleEl = document.getElementById('profile-role');
+    roleEl.textContent = role === 'tuteur' ? '👨‍🏫 Tuteur' : '🎓 Étudiant';
+    roleEl.className = 'role-badge ' + role;
+    
+    document.getElementById('first_name').value = data.first_name || '';
+    document.getElementById('last_name').value = data.last_name || '';
+    document.getElementById('date_of_birth').value = data.date_of_birth || '';
+    document.getElementById('purpose').value = data.purpose || '';
+    document.getElementById('bio').value = data.bio || '';
+    
+    if (data.role) {
+        setRole(data.role);
+    }
+    
+    if (data.first_name && data.last_name) {
+        const initials = (data.first_name[0] + data.last_name[0]).toUpperCase();
+        document.getElementById('avatar-img').src = 
+            `https://ui-avatars.com/api/?name=${initials}&background=0f9b8e&color=fff&size=128`;
+    }
+    
+    updateProgress();
+}
+
+function setRole(role) {
+    document.getElementById('role').value = role;
+    document.getElementById('btn-etudiant').classList.toggle('active', role === 'etudiant');
+    document.getElementById('btn-tuteur').classList.toggle('active', role === 'tuteur');
+}
+
+function updateProgress() {
+    const fields = ['first_name', 'last_name', 'date_of_birth', 'purpose'];
+    let filled = 0;
+    
+    fields.forEach(field => {
+        const value = document.getElementById(field).value;
+        if (value && value.trim() !== '') filled++;
+    });
+    
+    const percent = (filled / fields.length) * 100;
+    document.getElementById('progress-fill').style.width = percent + '%';
+    document.getElementById('progress-label').textContent = 
+        percent === 100 ? 'Profil complet !' : `Complétez votre profil (${Math.round(percent)}%)`;
+}
+
+async function saveProfile() {
+    const data = {
+        first_name: document.getElementById('first_name').value,
+        last_name: document.getElementById('last_name').value,
+        date_of_birth: document.getElementById('date_of_birth').value,
+        role: document.getElementById('role').value,
+        purpose: document.getElementById('purpose').value,
+        bio: document.getElementById('bio').value
+    };
+    
+    if (!data.first_name || !data.last_name || !data.role) {
+        showMessage('Veuillez remplir au moins le prénom, nom et rôle', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showMessage('Profil sauvegardé ! Redirection...', 'success');
+            setTimeout(() => {
+                window.location.href = '/api/users/profile-page/';
+            }, 1000);
+        } else {
+            showMessage(result.message || 'Erreur lors de la sauvegarde', 'error');
+        }
+    } catch (error) {
+        showMessage('Erreur de connexion au serveur', 'error');
+    }
+}
+
+async function uploadPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('profile_photo', file);
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('avatar-img').src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/upload-photo/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            },
+            credentials: 'include',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.profile_photo) {
+            document.getElementById('avatar-img').src = result.profile_photo;
+            showMessage('Photo mise à jour', 'success');
+        } else {
+            showMessage(result.message || 'Erreur lors du téléchargement', 'error');
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        showMessage('Erreur de connexion', 'error');
+    }
+}
+function showMessage(msg, type) {
+    const element = document.getElementById('message');
+    element.textContent = msg;
+    element.className = 'message ' + type;
+    element.style.display = 'block';
+    setTimeout(() => {
+        element.textContent = '';
+        element.className = 'message';
+        element.style.display = 'none';
+    }, 5000);
+}
+</script>
+{% endblock %}
