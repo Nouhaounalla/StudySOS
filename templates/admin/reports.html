@@ -1,0 +1,86 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Signalements – Admin StudySOS{% endblock %}
+{% block nav_reports %}active{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <div class="admin-page-title">Gestion des signalements</div>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Question signalée</th>
+          <th>Signalé par</th>
+          <th>Raison</th>
+          <th>Description</th>
+          <th>Date</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rep in reports %}
+        <tr id="rep-row-{{ rep.pk }}">
+          <td>
+            <a href="/questions/{{ rep.question.pk }}/" target="_blank" style="font-weight:500;color:var(--text-primary);">
+              {{ rep.question.title|truncatechars:50 }}
+            </a>
+          </td>
+          <td style="font-size:.85rem;">{{ rep.reporter.username }}</td>
+          <td><span class="badge badge-danger">{{ rep.get_reason_display }}</span></td>
+          <td style="font-size:.82rem;color:var(--text-secondary);max-width:200px;">{{ rep.description|truncatechars:80|default:'—' }}</td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ rep.created_at|date:"d/m/Y" }}</td>
+          <td>
+            {% if rep.is_resolved %}
+              <span class="badge badge-success">✓ Résolu</span>
+            {% else %}
+              <span class="badge badge-accent">⏳ En attente</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not rep.is_resolved %}
+            <div style="display:flex;gap:.5rem;">
+              <button class="btn btn-sm btn-primary" onclick="resolveReport({{ rep.pk }})">✓ Résoudre</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteAndResolve({{ rep.pk }}, {{ rep.question.pk }})">🗑 + Résoudre</button>
+            </div>
+            {% else %}
+            <span style="color:var(--text-muted);font-size:.82rem;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted);">
+          <div style="font-size:2rem;margin-bottom:.5rem;">✅</div>
+          Aucun signalement en attente.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function resolveReport(pk) {
+  const r = await API.post(`/admin-panel/reports/${pk}/resolve/`);
+  if (r.ok) {
+    const row = document.getElementById('rep-row-' + pk);
+    if (row) {
+      row.querySelector('td:nth-child(6)').innerHTML = '<span class="badge badge-success">✓ Résolu</span>';
+      row.querySelector('td:last-child').innerHTML = '<span style="color:var(--text-muted);font-size:.82rem;">—</span>';
+    }
+    showToast('Signalement résolu.', 'success');
+  }
+}
+
+async function deleteAndResolve(reportPk, questionPk) {
+  if (!confirm('Supprimer la question et résoudre le signalement ?')) return;
+  await API.post(`/admin-panel/questions/${questionPk}/delete/`);
+  await API.post(`/admin-panel/reports/${reportPk}/resolve/`);
+  document.getElementById('rep-row-' + reportPk)?.remove();
+  showToast('Question supprimée et signalement résolu.', 'success');
+}
+</script>
+{% endblock %}

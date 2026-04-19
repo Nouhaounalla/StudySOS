@@ -1,0 +1,121 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}Mes Sessions – StudySOS{% endblock %}
+{% block nav_sessions %}active{% endblock %}
+{% block extra_css %}
+<style>
+  .sessions-page { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  .sessions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 600px) { .sessions-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="sessions-page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="margin-bottom:.25rem;">Mes sessions d'aide</h1>
+      <p>Gérez vos sessions programmées avec des tuteurs</p>
+    </div>
+    <a href="/tutors/" class="btn btn-primary">📅 Réserver une session</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-student">En tant qu'étudiant</button>
+    {% if user.role == 'tuteur' %}<button class="tab-btn" data-tab="tab-tutor">En tant que tuteur</button>{% endif %}
+  </div>
+
+  <div id="tab-student" class="tab-panel active">
+    <div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button class="chip active" onclick="filterSessions('all','student',this)">Toutes</button>
+      <button class="chip" onclick="filterSessions('pending','student',this)">En attente</button>
+      <button class="chip" onclick="filterSessions('confirmed','student',this)">Confirmées</button>
+      <button class="chip" onclick="filterSessions('completed','student',this)">Terminées</button>
+      <button class="chip" onclick="filterSessions('cancelled','student',this)">Annulées</button>
+    </div>
+    <div class="sessions-grid" id="student-sessions">
+      <div style="text-align:center;padding:2rem;color:var(--text-muted);grid-column:1/-1;">Chargement…</div>
+    </div>
+  </div>
+
+  {% if user.role == 'tuteur' %}
+  <div id="tab-tutor" class="tab-panel">
+    <div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button class="chip active" onclick="filterSessions('all','tutor',this)">Toutes</button>
+      <button class="chip" onclick="filterSessions('pending','tutor',this)">En attente</button>
+      <button class="chip" onclick="filterSessions('confirmed','tutor',this)">Confirmées</button>
+      <button class="chip" onclick="filterSessions('completed','tutor',this)">Terminées</button>
+    </div>
+    <div class="sessions-grid" id="tutor-sessions">
+      <div style="text-align:center;padding:2rem;color:var(--text-muted);grid-column:1/-1;">Chargement…</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const STATUS_COLORS = { pending: 'badge-accent', confirmed: 'badge-primary', completed: 'badge-success', cancelled: 'badge-danger' };
+const STATUS_LABELS = { pending: '⏳ En attente', confirmed: '✅ Confirmée', completed: '🎓 Terminée', cancelled: '❌ Annulée' };
+
+function sessionCard(s, role) {
+  const other = role === 'student' ? s.tutor : s.student;
+  const canCancel = s.status === 'pending' || s.status === 'confirmed';
+  const canConfirm = role === 'tutor' && s.status === 'pending';
+  const canReview = role === 'student' && s.status === 'completed' && !s.has_review;
+
+  return `<div class="session-card">
+    <div class="session-card-header">
+      <div style="font-weight:600;font-size:.95rem;">${s.title}</div>
+      <span class="badge ${STATUS_COLORS[s.status]}">${STATUS_LABELS[s.status]}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.65rem;margin:0.65rem 0;">
+      <div class="avatar avatar-sm">${other?.initials || '?'}</div>
+      <div>
+        <div style="font-size:.85rem;font-weight:500;">${other?.full_name || '—'}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">${other?.role === 'tuteur' ? '👨‍🏫 Tuteur' : '🎓 Étudiant'}</div>
+      </div>
+    </div>
+    ${s.subject ? `<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:.4rem;">📚 ${s.subject.name}</div>` : ''}
+    <div style="font-size:.82rem;color:var(--text-secondary);">📅 ${new Date(s.start_datetime).toLocaleString('fr-FR')}</div>
+    <div style="font-size:.82rem;color:var(--text-muted);">⏱ ${s.duration_minutes} min</div>
+    ${s.meeting_link ? `<a href="${s.meeting_link}" target="_blank" class="btn btn-sm btn-outline" style="margin-top:.75rem;">🔗 Rejoindre</a>` : ''}
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap;">
+      ${canConfirm ? `<button class="btn btn-sm btn-primary" onclick="updateSession(${s.id},'confirmed')">✅ Confirmer</button>` : ''}
+      ${canCancel ? `<button class="btn btn-sm btn-danger" onclick="updateSession(${s.id},'cancelled')">Annuler</button>` : ''}
+      ${canReview ? `<button class="btn btn-sm btn-outline" onclick="openReview(${s.id})">⭐ Évaluer</button>` : ''}
+    </div>
+  </div>`;
+}
+
+async function loadSessions(role) {
+  const r = await API.get('/api/sessions/?role=' + role);
+  const el = document.getElementById(role + '-sessions');
+  if (!r.ok || !r.data.length) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">📅</div><h3>Aucune session</h3></div>`;
+    return;
+  }
+  el.innerHTML = r.data.map(s => sessionCard(s, role)).join('');
+}
+
+async function filterSessions(status, role, el) {
+  document.querySelectorAll('#tab-' + role + ' .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const param = status === 'all' ? '' : '&status=' + status;
+  const r = await API.get('/api/sessions/?role=' + role + param);
+  const container = document.getElementById(role + '-sessions');
+  if (!r.ok || !r.data.length) { container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">📅</div><h3>Aucune session</h3></div>'; return; }
+  container.innerHTML = r.data.map(s => sessionCard(s, role)).join('');
+}
+
+async function updateSession(id, status) {
+  const r = await API.patch('/api/sessions/' + id + '/', { status });
+  if (r.ok) { showToast('Session mise à jour.', 'success'); loadSessions('student'); loadSessions('tutor'); }
+}
+
+let reviewSessionId = null;
+function openReview(id) { reviewSessionId = id; openModal('review-modal'); }
+
+loadSessions('student');
+{% if user.role == 'tuteur' %}loadSessions('tutor');{% endif %}
+</script>
+{% endblock %}

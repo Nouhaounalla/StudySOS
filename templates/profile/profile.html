@@ -1,0 +1,357 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}Mon Profil – StudySOS{% endblock %}
+{% block nav_questions %}{% endblock %}
+{% block extra_css %}
+<style>
+  .profile-page { max-width: 1060px; margin: 2rem auto; padding: 0 1rem; }
+  .profile-header-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 1.5rem; }
+  .cover { height: 180px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); position: relative; overflow: hidden; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; }
+  .cover-edit { position: absolute; bottom: .75rem; right: .75rem; }
+  .profile-identity { padding: 0 1.5rem 1.5rem; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .profile-avatar-wrap { margin-top: -48px; }
+  .profile-avatar { width: 96px; height: 96px; border-radius: 50%; border: 4px solid white; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; overflow: hidden; position: relative; cursor: pointer; }
+  .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-avatar-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; border-radius: 50%; color: white; font-size: 1.3rem; }
+  .profile-avatar:hover .profile-avatar-overlay { display: flex; }
+  .profile-name { font-size: 1.4rem; font-weight: 700; margin-bottom: .2rem; }
+  .profile-meta { font-size: .85rem; color: var(--text-muted); display: flex; gap: .85rem; flex-wrap: wrap; margin-top: .25rem; }
+  .profile-stats { display: flex; gap: 2rem; flex-wrap: wrap; }
+  .stat-item { text-align: center; }
+  .stat-item .val { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); }
+  .stat-item .lbl { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; }
+  .sidebar-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .sidebar-card h4 { font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: .85rem; }
+  .availability-slot { display: flex; justify-content: space-between; align-items: center; padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+  .availability-slot:last-child { border-bottom: none; }
+  .avail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+  .avail-dot.off { background: var(--border); }
+  @media (max-width: 768px) { .profile-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="profile-page">
+  <!-- Header card -->
+  <div class="profile-header-card">
+    <div class="cover" id="cover-wrap">
+      <div id="cover-img-wrap"></div>
+      <label class="cover-edit btn btn-sm" style="background:rgba(0,0,0,.4);color:white;cursor:pointer;" for="cover-input">✏️ Modifier</label>
+      <input type="file" id="cover-input" accept="image/*" style="display:none" onchange="uploadCover(this)">
+    </div>
+    <div class="profile-identity">
+      <div style="display:flex;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
+        <div class="profile-avatar-wrap">
+          <label for="avatar-input" style="cursor:pointer;">
+            <div class="profile-avatar" id="profile-avatar-el">
+              <div class="profile-avatar-overlay">📷</div>
+            </div>
+          </label>
+          <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+        </div>
+        <div>
+          <div class="profile-name" id="profile-name">…</div>
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            <span id="profile-username" style="color:var(--text-muted);font-size:.88rem;"></span>
+            <span class="badge" id="profile-role-badge"></span>
+          </div>
+          <div class="profile-meta" id="profile-meta"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+        <div class="profile-stats" id="profile-stats"></div>
+        <button class="btn btn-outline btn-sm" onclick="openModal('edit-profile-modal')">✏️ Modifier</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion banner -->
+  <div id="completion-banner" class="card" style="margin-bottom:1.5rem;display:none;background:var(--accent-light);border-color:var(--accent);">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+      <div>
+        <div style="font-weight:600;margin-bottom:.2rem;">Complétez votre profil</div>
+        <div style="font-size:.85rem;color:var(--text-secondary);">Un profil complet vous donne plus de visibilité</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <div style="width:120px;">
+          <div class="progress"><div class="progress-bar" id="banner-progress" style="background:var(--accent);width:0%"></div></div>
+          <div style="font-size:.78rem;color:var(--text-muted);text-align:right;margin-top:.2rem;" id="banner-pct">0%</div>
+        </div>
+        <a href="/profile/complete/" class="btn btn-sm" style="background:var(--accent);color:white;">Compléter →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-grid">
+    <!-- Sidebar -->
+    <div>
+      <div class="sidebar-card">
+        <h4>À propos</h4>
+        <div id="sidebar-bio" style="font-size:.88rem;color:var(--text-secondary);line-height:1.6;"></div>
+        <div id="sidebar-location" style="font-size:.85rem;color:var(--text-muted);margin-top:.75rem;"></div>
+        <div id="sidebar-joined" style="font-size:.82rem;color:var(--text-muted);margin-top:.35rem;"></div>
+      </div>
+      <div class="sidebar-card" id="availability-card" style="display:none;">
+        <h4>Disponibilités</h4>
+        <div id="availability-list"></div>
+        <button class="btn btn-outline btn-sm btn-block" style="margin-top:.75rem;" onclick="openModal('availability-modal')">Modifier les créneaux</button>
+      </div>
+      <div class="sidebar-card">
+        <h4>Complétion du profil</h4>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--primary);" id="sidebar-pct">0%</div>
+          <div class="progress" style="flex:1;"><div class="progress-bar" id="sidebar-progress" style="width:0%"></div></div>
+        </div>
+        <a href="/profile/complete/" class="btn btn-outline btn-sm btn-block">Compléter le profil</a>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div>
+      <div class="tabs" style="margin-bottom:1.5rem;">
+        <button class="tab-btn active" data-tab="tab-feed">Feed</button>
+        <button class="tab-btn" data-tab="tab-questions">Mes questions</button>
+        <button class="tab-btn" data-tab="tab-sessions">Sessions</button>
+        <button class="tab-btn" data-tab="tab-settings">Paramètres</button>
+      </div>
+
+      <div id="tab-feed" class="tab-panel active">
+        <div class="card" style="margin-bottom:1rem;">
+          <div style="display:flex;gap:.85rem;align-items:center;">
+            <div class="avatar" id="feed-avatar"></div>
+            <button class="form-control" style="text-align:left;cursor:pointer;color:var(--text-muted);" onclick="window.location.href='/questions/'">Poser une question académique…</button>
+          </div>
+        </div>
+        <div id="my-questions-feed"></div>
+      </div>
+
+      <div id="tab-questions" class="tab-panel">
+        <div id="questions-list-tab"></div>
+      </div>
+
+      <div id="tab-sessions" class="tab-panel">
+        <div id="sessions-list-tab"></div>
+      </div>
+
+      <div id="tab-settings" class="tab-panel">
+        <div class="card">
+          <h3 style="margin-bottom:1.25rem;">Paramètres du compte</h3>
+          <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Mot de passe actuel</label>
+              <input type="password" id="old-pw" class="form-control" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nouveau mot de passe</label>
+              <input type="password" id="new-pw" class="form-control" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirmer le nouveau mot de passe</label>
+              <input type="password" id="new-pw2" class="form-control" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary" onclick="changePassword()">Changer le mot de passe</button>
+            <div class="divider" style="margin:.5rem 0;"></div>
+            <div>
+              <div style="font-weight:600;color:var(--danger);margin-bottom:.35rem;">Zone dangereuse</div>
+              <button class="btn btn-danger btn-sm" onclick="confirmDeleteAccount()">🗑 Supprimer mon compte</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal-overlay" id="edit-profile-modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Modifier le profil</span>
+      <button class="modal-close" onclick="closeModal('edit-profile-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Prénom</label><input id="edit-first" class="form-control"></div>
+        <div class="form-group"><label class="form-label">Nom</label><input id="edit-last" class="form-control"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Localisation</label><input id="edit-location" class="form-control"></div>
+      <div class="form-group"><label class="form-label">Objectif</label><input id="edit-purpose" class="form-control"></div>
+      <div class="form-group"><label class="form-label">Bio</label><textarea id="edit-bio" class="form-control" rows="3"></textarea></div>
+      <div id="subjects-group" style="display:none;">
+        <label class="form-label">Matières enseignées</label>
+        <div id="subjects-checkboxes" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('edit-profile-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let profileData = null;
+const DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+
+async function loadProfile() {
+  const r = await API.get('/api/users/profile/');
+  if (!r.ok) { window.location.href = '/auth/'; return; }
+  profileData = r.data;
+  renderProfile(r.data);
+  loadMyQuestions();
+  loadMySessions();
+}
+
+function renderProfile(p) {
+  // Avatar
+  const av = document.getElementById('profile-avatar-el');
+  av.innerHTML = p.profile_photo
+    ? `<img src="${p.profile_photo}"><div class="profile-avatar-overlay">📷</div>`
+    : `${p.initials}<div class="profile-avatar-overlay">📷</div>`;
+  document.getElementById('feed-avatar').innerHTML = p.profile_photo
+    ? `<img src="${p.profile_photo}">` : p.initials;
+
+  // Cover
+  if (p.cover_photo) {
+    document.getElementById('cover-img-wrap').innerHTML = `<img src="${p.cover_photo}" style="width:100%;height:180px;object-fit:cover;">`;
+  }
+
+  // Identity
+  document.getElementById('profile-name').textContent = p.full_name;
+  document.getElementById('profile-username').textContent = '@' + p.username;
+  const badge = document.getElementById('profile-role-badge');
+  badge.textContent = p.role === 'etudiant' ? '🎓 Étudiant' : p.role === 'tuteur' ? '👨‍🏫 Tuteur' : '⚙️ Admin';
+  badge.className = 'badge ' + (p.role === 'tuteur' ? 'badge-primary' : 'badge-accent');
+
+  const meta = [];
+  if (p.location) meta.push('📍 ' + p.location);
+  if (p.date_joined) meta.push('📅 Depuis ' + new Date(p.date_joined).toLocaleDateString('fr-FR', {month:'long',year:'numeric'}));
+  document.getElementById('profile-meta').innerHTML = meta.map(m => `<span>${m}</span>`).join('');
+
+  // Stats
+  document.getElementById('profile-stats').innerHTML = `
+    <div class="stat-item"><div class="val">${p.sessions_count}</div><div class="lbl">Sessions</div></div>
+    <div class="stat-item"><div class="val">${p.students_count}</div><div class="lbl">Étudiants</div></div>
+    <div class="stat-item"><div class="val">${p.satisfaction_score || 0}%</div><div class="lbl">Satisfaction</div></div>`;
+
+  // Sidebar
+  document.getElementById('sidebar-bio').textContent = p.bio || 'Aucune bio disponible.';
+  if (p.location) document.getElementById('sidebar-location').textContent = '📍 ' + p.location;
+  if (p.date_joined) document.getElementById('sidebar-joined').textContent = '📅 Membre depuis ' + new Date(p.date_joined).toLocaleDateString('fr-FR');
+
+  // Completion
+  const pct = p.profile_completion;
+  document.getElementById('sidebar-pct').textContent = pct + '%';
+  document.getElementById('sidebar-progress').style.width = pct + '%';
+  if (pct < 80) {
+    document.getElementById('completion-banner').style.display = 'block';
+    document.getElementById('banner-progress').style.width = pct + '%';
+    document.getElementById('banner-pct').textContent = pct + '%';
+  }
+
+  // Availability (tutors)
+  if (p.role === 'tuteur' && p.availability && Object.keys(p.availability).length) {
+    document.getElementById('availability-card').style.display = 'block';
+    document.getElementById('availability-list').innerHTML = DAYS.map((d, i) => {
+      const slot = p.availability[i];
+      return `<div class="availability-slot">
+        <span>${d}</span>
+        ${slot ? `<span style="display:flex;align-items:center;gap:.4rem;"><div class="avail-dot"></div>${slot}</span>` : `<span style="color:var(--text-muted);font-size:.8rem;">Indisponible</span>`}
+      </div>`;
+    }).join('');
+  }
+
+  // Pre-fill edit modal
+  document.getElementById('edit-first').value = p.first_name || '';
+  document.getElementById('edit-last').value = p.last_name || '';
+  document.getElementById('edit-location').value = p.location || '';
+  document.getElementById('edit-purpose').value = p.purpose || '';
+  document.getElementById('edit-bio').value = p.bio || '';
+}
+
+async function loadMyQuestions() {
+  const r = await API.get('/api/questions/?ordering=-created_at');
+  if (!r.ok) return;
+  const myQ = r.data.filter(q => q.author?.username === profileData?.username);
+  const el = document.getElementById('my-questions-feed');
+  const el2 = document.getElementById('questions-list-tab');
+  if (!myQ.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❓</div><h3>Aucune question publiée</h3><a href="/questions/" class="btn btn-primary">Poser une question</a></div>';
+    el2.innerHTML = el.innerHTML; return;
+  }
+  const html = myQ.map(q => `
+    <div class="question-card" onclick="window.location.href='/questions/${q.id}/'">
+      <div class="question-title">${q.title}</div>
+      <div class="question-excerpt">${q.content}</div>
+      <div class="question-footer">
+        <span class="badge ${q.status === 'resolved' ? 'badge-success' : 'badge-primary'}">${q.status === 'resolved' ? '✓ Résolue' : '🟢 Ouverte'}</span>
+        <span style="font-size:.82rem;color:var(--text-muted);">💬 ${q.answers_count} réponse${q.answers_count !== 1 ? 's' : ''}</span>
+      </div>
+    </div>`).join('');
+  el.innerHTML = html; el2.innerHTML = html;
+}
+
+async function loadMySessions() {
+  const r = await API.get('/api/sessions/');
+  const el = document.getElementById('sessions-list-tab');
+  if (!r.ok || !r.data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><h3>Aucune session</h3><a href="/tutors/" class="btn btn-primary">Trouver un tuteur</a></div>'; return; }
+  el.innerHTML = r.data.map(s => `
+    <div class="session-card" style="margin-bottom:1rem;">
+      <div class="session-card-header">
+        <div><div style="font-weight:600;">${s.title}</div><div style="font-size:.85rem;color:var(--text-muted);">${s.subject?.name || 'Matière non définie'}</div></div>
+        <span class="badge ${s.status === 'completed' ? 'badge-success' : s.status === 'confirmed' ? 'badge-primary' : s.status === 'cancelled' ? 'badge-danger' : 'badge-accent'}">${s.status}</span>
+      </div>
+      <div style="font-size:.85rem;color:var(--text-secondary);">📅 ${new Date(s.start_datetime).toLocaleString('fr-FR')}</div>
+      <div style="font-size:.85rem;color:var(--text-secondary);margin-top:.25rem;">👨‍🏫 ${s.tutor?.full_name}</div>
+    </div>`).join('');
+}
+
+async function uploadAvatar(input) {
+  if (!input.files[0]) return;
+  const fd = new FormData(); fd.append('photo', input.files[0]);
+  const r = await API.upload('/api/users/upload-photo/', fd);
+  if (r.ok) { showToast('Photo mise à jour !', 'success'); loadProfile(); }
+  else showToast('Erreur upload.', 'error');
+}
+
+async function uploadCover(input) {
+  if (!input.files[0]) return;
+  const fd = new FormData(); fd.append('photo', input.files[0]);
+  const r = await API.upload('/api/users/upload-cover/', fd);
+  if (r.ok) { showToast('Couverture mise à jour !', 'success'); loadProfile(); }
+}
+
+async function saveEdit() {
+  const r = await API.patch('/api/users/profile/', {
+    first_name: document.getElementById('edit-first').value,
+    last_name: document.getElementById('edit-last').value,
+    location: document.getElementById('edit-location').value,
+    purpose: document.getElementById('edit-purpose').value,
+    bio: document.getElementById('edit-bio').value,
+  });
+  if (r.ok) { showToast('Profil mis à jour !', 'success'); closeModal('edit-profile-modal'); loadProfile(); }
+  else showToast('Erreur lors de la sauvegarde.', 'error');
+}
+
+async function changePassword() {
+  const r = await API.post('/api/users/change-password/', {
+    old_password: document.getElementById('old-pw').value,
+    new_password: document.getElementById('new-pw').value,
+    new_password_confirm: document.getElementById('new-pw2').value,
+  });
+  if (r.ok) showToast('Mot de passe modifié !', 'success');
+  else showToast(Object.values(r.data).flat().join(' ') || 'Erreur.', 'error');
+}
+
+function confirmDeleteAccount() {
+  if (confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
+    API.delete('/api/users/delete/').then(r => { if (r.ok) window.location.href = '/auth/'; });
+  }
+}
+
+loadProfile();
+</script>
+{% endblock %}

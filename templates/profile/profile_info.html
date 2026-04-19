@@ -1,0 +1,124 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}Compléter mon profil – StudySOS{% endblock %}
+{% block extra_css %}
+<style>
+  .info-wrap { max-width: 620px; margin: 2.5rem auto; padding: 0 1rem; }
+  .info-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-md); }
+  .info-card-header { padding: 1.5rem; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+  .info-card-header h2 { color: white; margin-bottom: .25rem; }
+  .info-card-header p { color: rgba(255,255,255,.8); font-size: .9rem; }
+  .info-card-body { padding: 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
+  .progress-wrap { margin-bottom: .5rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--text-muted); margin-bottom: .4rem; }
+  .photo-upload { display: flex; align-items: center; gap: 1.25rem; }
+  .photo-preview { width: 80px; height: 80px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--border); flex-shrink: 0; }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="info-wrap">
+  <div class="info-card">
+    <div class="info-card-header">
+      <h2>Complétez votre profil</h2>
+      <p>Quelques informations pour bien démarrer sur StudySOS</p>
+    </div>
+    <div class="info-card-body">
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Complétion du profil</span><span id="progress-pct">0%</span></div>
+        <div class="progress"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+      </div>
+
+      <div class="photo-upload">
+        <div class="photo-preview" id="photo-preview">🎓</div>
+        <div>
+          <div style="font-weight:600;margin-bottom:.35rem;">Photo de profil</div>
+          <label class="btn btn-outline btn-sm" for="photo-input" style="cursor:pointer;">📷 Choisir une photo</label>
+          <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+          <div class="form-hint" style="margin-top:.3rem;">JPG, PNG – max 5 Mo</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prénom</label>
+          <input type="text" id="first_name" class="form-control" placeholder="Votre prénom" oninput="updateProgress()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom</label>
+          <input type="text" id="last_name" class="form-control" placeholder="Votre nom" oninput="updateProgress()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Date de naissance</label>
+        <input type="date" id="date_of_birth" class="form-control" oninput="updateProgress()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Localisation</label>
+        <input type="text" id="location" class="form-control" placeholder="Ex: Tunis, Tunisie" oninput="updateProgress()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Objectif sur StudySOS</label>
+        <input type="text" id="purpose" class="form-control" placeholder="Ex: Réussir mes examens de maths" oninput="updateProgress()">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Bio <span style="color:var(--text-muted);font-weight:400;">(optionnel)</span></label>
+        <textarea id="bio" class="form-control" rows="3" placeholder="Parlez de vous..." oninput="updateProgress()"></textarea>
+      </div>
+
+      <button class="btn btn-primary btn-block btn-lg" onclick="saveProfile()" id="save-btn">Sauvegarder le profil →</button>
+      <a href="/profile/" style="text-align:center;color:var(--text-muted);font-size:.85rem;">Passer pour l'instant</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let photoFile = null;
+const fields = ['first_name', 'last_name', 'date_of_birth', 'purpose', 'bio', 'location'];
+
+function updateProgress() {
+  const filled = fields.filter(f => document.getElementById(f)?.value.trim()).length + (photoFile ? 1 : 0);
+  const pct = Math.round((filled / (fields.length + 1)) * 100);
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+function previewPhoto(input) {
+  if (!input.files[0]) return;
+  photoFile = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('photo-preview');
+    prev.innerHTML = `<img src="${e.target.result}">`;
+  };
+  reader.readAsDataURL(input.files[0]);
+  updateProgress();
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('save-btn');
+  btn.innerHTML = '<span class="spinner"></span> Enregistrement…'; btn.disabled = true;
+
+  // Upload photo first
+  if (photoFile) {
+    const fd = new FormData(); fd.append('photo', photoFile);
+    await API.upload('/api/users/upload-photo/', fd);
+  }
+
+  // Save profile fields
+  const data = {};
+  fields.forEach(f => { const v = document.getElementById(f)?.value.trim(); if (v) data[f] = v; });
+
+  const r = await API.patch('/api/users/profile/', data);
+  btn.innerHTML = 'Sauvegarder le profil →'; btn.disabled = false;
+
+  if (r.ok) { showToast('Profil complété !', 'success'); setTimeout(() => window.location.href = '/profile/', 800); }
+  else showToast('Erreur lors de la sauvegarde.', 'error');
+}
+</script>
+{% endblock %}

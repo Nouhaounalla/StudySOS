@@ -1,0 +1,183 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}Questions – StudySOS{% endblock %}
+{% block nav_questions %}active{% endblock %}
+{% block extra_css %}
+<style>
+  .q-page { max-width: 1060px; margin: 2rem auto; padding: 0 1rem; }
+  .q-layout { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; }
+  .subject-list { display: flex; flex-direction: column; gap: .3rem; }
+  .subject-item { display: flex; align-items: center; gap: .65rem; padding: .55rem .85rem; border-radius: var(--radius); cursor: pointer; font-size: .88rem; font-weight: 500; color: var(--text-secondary); transition: var(--transition); border: none; background: none; text-align: left; }
+  .subject-item:hover, .subject-item.active { background: var(--primary-light); color: var(--primary-dark); }
+  .subject-item .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .q-list { display: flex; flex-direction: column; gap: .85rem; }
+  .q-toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  @media (max-width: 640px) { .q-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="q-page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="margin-bottom:.25rem;">Questions académiques</h1>
+      <p>Trouvez ou posez une question dans votre matière</p>
+    </div>
+    {% if user %}<button class="btn btn-primary" onclick="openModal('ask-modal')">✏️ Poser une question</button>{% else %}<a href="/auth/" class="btn btn-primary">✏️ Poser une question</a>{% endif %}
+  </div>
+
+  <div class="q-layout">
+    <!-- Sidebar subjects -->
+    <div class="sidebar-sticky">
+      <div class="card" style="padding:1rem;">
+        <div style="font-size:.78rem;font-weight:600;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.75rem;">Matières</div>
+        <div class="subject-list">
+          <button class="subject-item active" onclick="filterSubject(null, this)">
+            <span class="dot" style="background:var(--primary);"></span>Toutes
+          </button>
+          {% for s in subjects %}
+          <button class="subject-item" onclick="filterSubject('{{ s.slug }}', this)" data-slug="{{ s.slug }}">
+            <span class="dot" style="background:{{ s.color }};"></span>{{ s.name }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card" style="padding:1rem;margin-top:1rem;">
+        <div style="font-size:.78rem;font-weight:600;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.75rem;">Statut</div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;">
+          <button class="subject-item active" onclick="filterStatus(null, this)">Toutes</button>
+          <button class="subject-item" onclick="filterStatus('open', this)">🟢 Ouvertes</button>
+          <button class="subject-item" onclick="filterStatus('resolved', this)">✅ Résolues</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div>
+      <div class="q-toolbar">
+        <div class="search-bar" style="flex:1;">
+          <input type="text" placeholder="Rechercher une question…" id="search-input" oninput="debounceSearch()">
+          <button class="btn btn-primary btn-sm">🔍</button>
+        </div>
+        <select class="form-control" style="width:auto;" onchange="sortQuestions(this.value)">
+          <option value="-created_at">Plus récentes</option>
+          <option value="-views_count">Plus vues</option>
+          <option value="created_at">Plus anciennes</option>
+        </select>
+      </div>
+      <div id="q-list" class="q-list">
+        <div style="text-align:center;padding:3rem;color:var(--text-muted);">Chargement…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ask question modal -->
+{% if user %}
+<div class="modal-overlay" id="ask-modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Poser une question</span>
+      <button class="modal-close" onclick="closeModal('ask-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Titre de la question *</label>
+        <input type="text" id="q-title" class="form-control" placeholder="Résumez votre question en une phrase" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Matière</label>
+        <select id="q-subject" class="form-control">
+          <option value="">Choisir une matière</option>
+          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Détails *</label>
+        <textarea id="q-content" class="form-control" rows="5" placeholder="Expliquez votre question en détail…" required></textarea>
+      </div>
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.88rem;">
+        <input type="checkbox" id="q-anon"> Publier anonymement
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('ask-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitQuestion()">Publier la question</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentSubject = null, currentStatus = null, currentSort = '-created_at', searchTimer;
+
+async function loadQuestions() {
+  const params = new URLSearchParams();
+  if (currentSubject) params.set('subject', currentSubject);
+  if (currentStatus) params.set('status', currentStatus);
+  if (currentSort) params.set('ordering', currentSort);
+  const q = document.getElementById('search-input').value.trim();
+  if (q) params.set('q', q);
+
+  const r = await API.get('/api/questions/?' + params);
+  const el = document.getElementById('q-list');
+  if (!r.ok) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><h3>Erreur de chargement</h3></div>'; return; }
+  if (!r.data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❓</div><h3>Aucune question trouvée</h3></div>'; return; }
+
+  el.innerHTML = r.data.map(q => `
+    <div class="question-card" onclick="window.location.href='/questions/${q.id}/'">
+      <div class="question-card-header">
+        <div class="avatar avatar-sm">${q.display_author.initials || '?'}</div>
+        <div>
+          <div style="font-size:.88rem;font-weight:500;">${q.display_author.username}</div>
+          <div style="font-size:.78rem;color:var(--text-muted);">${relativeTime(q.created_at)}</div>
+        </div>
+        ${q.subject ? `<span class="badge badge-primary" style="margin-left:auto;">${q.subject.name}</span>` : ''}
+      </div>
+      <div class="question-title">${q.title}</div>
+      <div class="question-excerpt">${q.content}</div>
+      <div class="question-footer">
+        <span class="badge ${q.status === 'resolved' ? 'badge-success' : 'badge-muted'}">${q.status === 'resolved' ? '✅ Résolue' : '🟢 Ouverte'}</span>
+        <div style="display:flex;gap:.75rem;font-size:.82rem;color:var(--text-muted);">
+          <span>💬 ${q.answers_count}</span>
+          <span>👁 ${q.views_count}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterSubject(slug, el) {
+  currentSubject = slug;
+  document.querySelectorAll('.subject-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  loadQuestions();
+}
+function filterStatus(status, el) {
+  currentStatus = status;
+  document.querySelectorAll('.subject-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  loadQuestions();
+}
+function sortQuestions(val) { currentSort = val; loadQuestions(); }
+function debounceSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(loadQuestions, 400); }
+
+async function submitQuestion() {
+  const title = document.getElementById('q-title').value.trim();
+  const content = document.getElementById('q-content').value.trim();
+  if (!title || !content) { showToast('Titre et contenu requis.', 'error'); return; }
+  const data = { title, content, is_anonymous: document.getElementById('q-anon').checked };
+  const subj = document.getElementById('q-subject').value;
+  if (subj) data.subject_id = parseInt(subj);
+
+  const r = await API.post('/api/questions/', data);
+  if (r.ok) {
+    showToast('Question publiée !', 'success');
+    closeModal('ask-modal');
+    setTimeout(() => window.location.href = '/questions/' + r.data.id + '/', 600);
+  } else showToast('Erreur lors de la publication.', 'error');
+}
+
+loadQuestions();
+</script>
+{% endblock %}

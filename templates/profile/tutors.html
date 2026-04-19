@@ -1,0 +1,187 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}Tuteurs – StudySOS{% endblock %}
+{% block nav_tutors %}active{% endblock %}
+{% block extra_css %}
+<style>
+  .tutors-page { max-width: 1060px; margin: 2rem auto; padding: 0 1rem; }
+  .tutors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem; }
+  .tutor-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: var(--transition); }
+  .tutor-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .tutor-card-cover { height: 70px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); position: relative; }
+  .tutor-card-avatar { position: absolute; bottom: -28px; left: 1.25rem; }
+  .tutor-card-body { padding: 2rem 1.25rem 1.25rem; }
+  .tutor-name { font-size: 1rem; font-weight: 700; margin-bottom: .15rem; }
+  .tutor-subjects { display: flex; flex-wrap: wrap; gap: .35rem; margin: .65rem 0; }
+  .tutor-stats { display: flex; gap: 1rem; font-size: .8rem; color: var(--text-muted); margin: .65rem 0; }
+  .tutor-actions { display: flex; gap: .5rem; margin-top: .85rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="tutors-page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 style="margin-bottom:.25rem;">Trouver un tuteur</h1>
+      <p>Des étudiants qualifiés prêts à vous accompagner</p>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+    <div class="search-bar" style="flex:1;max-width:400px;">
+      <input type="text" id="tutor-search" placeholder="Rechercher un tuteur…" oninput="debounce()">
+      <button class="btn btn-primary btn-sm">🔍</button>
+    </div>
+    <div id="subject-filters" class="chips"></div>
+  </div>
+
+  <div class="tutors-grid" id="tutors-grid">
+    <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">Chargement…</div>
+  </div>
+</div>
+
+<!-- Book session modal -->
+{% if user %}
+<div class="modal-overlay" id="book-modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📅 Réserver une session</span>
+      <button class="modal-close" onclick="closeModal('book-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="book-tutor-info" style="display:flex;align-items:center;gap:.85rem;padding:.75rem;background:var(--bg);border-radius:var(--radius);margin-bottom:.5rem;"></div>
+      <div class="form-group">
+        <label class="form-label">Titre de la session *</label>
+        <input type="text" id="book-title" class="form-control" placeholder="Ex: Aide en algèbre linéaire">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Matière</label>
+        <select id="book-subject" class="form-control">
+          <option value="">Choisir une matière</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Début *</label>
+          <input type="datetime-local" id="book-start" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fin *</label>
+          <input type="datetime-local" id="book-end" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="book-desc" class="form-control" rows="3" placeholder="Décrivez ce que vous souhaitez travailler…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('book-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitBooking()">Envoyer la demande</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+let allTutors = [], selectedTutor = null, searchTimer;
+
+async function loadTutors(q = '', subject = '') {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (subject) params.set('subject', subject);
+  const r = await API.get('/api/users/tutors/?' + params);
+  allTutors = r.ok ? r.data : [];
+  renderTutors(allTutors);
+}
+
+async function loadSubjects() {
+  const r = await API.get('/api/questions/subjects/');
+  if (!r.ok) return;
+  const wrap = document.getElementById('subject-filters');
+  wrap.innerHTML = '<button class="chip active" onclick="filterSubject(null,this)">Toutes</button>' +
+    r.data.map(s => `<button class="chip" onclick="filterSubject('${s.slug}',this)">${s.name}</button>`).join('');
+  // Also populate booking modal select
+  const sel = document.getElementById('book-subject');
+  if (sel) r.data.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+}
+
+function renderTutors(tutors) {
+  const el = document.getElementById('tutors-grid');
+  if (!tutors.length) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">👨‍🏫</div><h3>Aucun tuteur trouvé</h3></div>';
+    return;
+  }
+  el.innerHTML = tutors.map(t => `
+    <div class="tutor-card">
+      <div class="tutor-card-cover"></div>
+      <div class="tutor-card-avatar">
+        <div class="avatar" style="width:56px;height:56px;font-size:1.2rem;border:3px solid white;">
+          ${t.profile_photo ? `<img src="${t.profile_photo}" alt="">` : t.initials}
+        </div>
+      </div>
+      <div class="tutor-card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="tutor-name">${t.full_name}</div>
+            <div style="font-size:.8rem;color:var(--text-muted);">@${t.username}</div>
+          </div>
+          <span class="status-dot ${t.is_online ? 'online' : 'offline'}" title="${t.is_online ? 'En ligne' : 'Hors ligne'}"></span>
+        </div>
+        ${t.bio ? `<div style="font-size:.82rem;color:var(--text-secondary);margin-top:.5rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${t.bio}</div>` : ''}
+        <div class="tutor-subjects">
+          ${(t.subjects || []).slice(0,3).map(s => `<span class="badge badge-primary">${s}</span>`).join('')}
+        </div>
+        <div class="tutor-stats">
+          <span>📅 ${t.sessions_count} sessions</span>
+          <span>⭐ ${t.satisfaction_score || 0}%</span>
+          ${t.location ? `<span>📍 ${t.location}</span>` : ''}
+        </div>
+        <div class="tutor-actions">
+          <a href="/profile/${t.username}/" class="btn btn-outline btn-sm" style="flex:1;">Voir profil</a>
+          {% if user %}
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="bookTutor(${JSON.stringify(t).replace(/"/g,'&quot;')})">📅 Réserver</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterSubject(slug, btn) {
+  document.querySelectorAll('#subject-filters .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  loadTutors(document.getElementById('tutor-search').value, slug || '');
+}
+
+function debounce() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadTutors(document.getElementById('tutor-search').value), 350); }
+
+function bookTutor(tutor) {
+  selectedTutor = tutor;
+  document.getElementById('book-tutor-info').innerHTML = `
+    <div class="avatar avatar-sm">${tutor.initials}</div>
+    <div><div style="font-weight:600;">${tutor.full_name}</div><div style="font-size:.78rem;color:var(--text-muted);">@${tutor.username}</div></div>`;
+  openModal('book-modal');
+}
+
+async function submitBooking() {
+  if (!selectedTutor) return;
+  const title = document.getElementById('book-title').value.trim();
+  const start = document.getElementById('book-start').value;
+  const end = document.getElementById('book-end').value;
+  if (!title || !start || !end) { showToast('Titre, début et fin requis.', 'error'); return; }
+  const data = {
+    tutor_id: selectedTutor.id, title,
+    start_datetime: start, end_datetime: end,
+    description: document.getElementById('book-desc').value,
+  };
+  const subj = document.getElementById('book-subject')?.value;
+  if (subj) data.subject_id = parseInt(subj);
+  const r = await API.post('/api/sessions/', data);
+  if (r.ok) { showToast('Demande envoyée !', 'success'); closeModal('book-modal'); }
+  else showToast(Object.values(r.data).flat().join(' ') || 'Erreur.', 'error');
+}
+
+loadTutors();
+loadSubjects();
+</script>
+{% endblock %}

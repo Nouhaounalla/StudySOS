@@ -1,0 +1,79 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Statistiques – Admin StudySOS{% endblock %}
+{% block nav_stats %}active{% endblock %}
+{% block extra_css %}
+<style>
+  .chart-bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding: 0 .5rem; }
+  .chart-bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .chart-bar { width: 100%; background: var(--primary); border-radius: 4px 4px 0 0; min-height: 4px; transition: height .4s ease; }
+  .chart-bar-label { font-size: .7rem; color: var(--text-muted); }
+  .chart-bar-val { font-size: .72rem; font-weight: 600; color: var(--primary); }
+  .donut-wrap { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <div class="admin-page-title">Statistiques d'utilisation</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+  <!-- Registrations last 7 days -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Inscriptions (7 derniers jours)</span></div>
+    <div class="chart-bar-wrap" id="reg-chart"></div>
+  </div>
+
+  <!-- Sessions breakdown -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Statut des sessions</span></div>
+    <div class="donut-wrap" id="session-chart" style="padding:.5rem 0;"></div>
+  </div>
+</div>
+
+<!-- Questions by subject -->
+<div class="card">
+  <div class="card-header"><span class="card-title">Questions par matière</span></div>
+  <div id="subject-chart" style="display:flex;flex-direction:column;gap:.75rem;padding:.5rem 0;"></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const regData = {{ user_registrations|safe }};
+const subjectData = {{ questions_by_subject|safe }};
+const sessionStats = {{ session_stats|safe }};
+
+// Registrations bar chart
+const maxReg = Math.max(...regData.map(d => d.count), 1);
+document.getElementById('reg-chart').innerHTML = regData.map(d => `
+  <div class="chart-bar-col">
+    <div class="chart-bar-val">${d.count}</div>
+    <div class="chart-bar" style="height:${Math.max((d.count/maxReg)*100, 4)}px;"></div>
+    <div class="chart-bar-label">${d.date}</div>
+  </div>`).join('');
+
+// Sessions donut-style legend
+const sessionColors = { pending: '#f59e0b', confirmed: '#0d9488', completed: '#22c55e', cancelled: '#ef4444' };
+const sessionLabels = { pending: 'En attente', confirmed: 'Confirmées', completed: 'Terminées', cancelled: 'Annulées' };
+const total = Object.values(sessionStats).reduce((a, b) => a + b, 0) || 1;
+document.getElementById('session-chart').innerHTML = Object.entries(sessionStats).map(([k, v]) => `
+  <div class="legend-item">
+    <div class="legend-dot" style="background:${sessionColors[k]};"></div>
+    <span style="flex:1;">${sessionLabels[k]}</span>
+    <strong>${v}</strong>
+    <span style="color:var(--text-muted);font-size:.78rem;margin-left:.35rem;">(${Math.round(v/total*100)}%)</span>
+  </div>`).join('');
+
+// Questions by subject bar
+const maxQ = Math.max(...subjectData.map(d => d.q_count), 1);
+document.getElementById('subject-chart').innerHTML = subjectData.map(d => `
+  <div style="display:flex;align-items:center;gap:.85rem;">
+    <div style="width:130px;font-size:.85rem;font-weight:500;color:var(--text-secondary);text-align:right;flex-shrink:0;">${d.name}</div>
+    <div style="flex:1;background:var(--border);border-radius:9999px;height:10px;overflow:hidden;">
+      <div style="height:100%;width:${Math.round(d.q_count/maxQ*100)}%;background:var(--primary);border-radius:9999px;transition:width .5s;"></div>
+    </div>
+    <div style="width:30px;font-size:.85rem;font-weight:600;color:var(--primary);">${d.q_count}</div>
+  </div>`).join('');
+</script>
+{% endblock %}

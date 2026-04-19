@@ -1,0 +1,159 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}{{ question.title }} – StudySOS{% endblock %}
+{% block nav_questions %}active{% endblock %}
+{% block extra_css %}
+<style>
+  .qd-page { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+  .qd-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem; margin-bottom: 1.5rem; }
+  .qd-author { display: flex; align-items: center; gap: .85rem; margin-bottom: 1.25rem; }
+  .qd-content { font-size: 1rem; line-height: 1.75; color: var(--text-primary); margin: 1rem 0; }
+  .answer-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1rem; position: relative; }
+  .answer-card.accepted { border-color: var(--success); background: var(--success-light); }
+  .answer-actions { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .upvote-btn { display: flex; align-items: center; gap: .35rem; padding: .35rem .75rem; border-radius: var(--radius-full); border: 1.5px solid var(--border); background: white; font-size: .85rem; cursor: pointer; transition: var(--transition); }
+  .upvote-btn:hover, .upvote-btn.active { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="qd-page">
+  <a href="/questions/" style="color:var(--text-muted);font-size:.88rem;display:inline-flex;align-items:center;gap:.35rem;margin-bottom:1.25rem;">← Retour aux questions</a>
+
+  <div class="qd-card" id="question-card">
+    <div style="text-align:center;padding:2rem;color:var(--text-muted);">Chargement…</div>
+  </div>
+
+  <!-- Answers -->
+  <div id="answers-section" style="display:none;">
+    <h3 style="margin-bottom:1rem;" id="answers-title">Réponses</h3>
+    <div id="answers-list"></div>
+
+    {% if user %}
+    <div class="qd-card" style="margin-top:1.5rem;">
+      <h4 style="margin-bottom:1rem;">✍️ Votre réponse</h4>
+      <div class="form-group">
+        <textarea id="answer-content" class="form-control" rows="5" placeholder="Rédigez une réponse détaillée et utile…"></textarea>
+      </div>
+      <button class="btn btn-primary" style="margin-top:.85rem;" onclick="submitAnswer()">Publier la réponse</button>
+    </div>
+    {% else %}
+    <div class="card" style="text-align:center;margin-top:1.5rem;">
+      <p style="margin-bottom:.85rem;">Connectez-vous pour répondre à cette question</p>
+      <a href="/auth/" class="btn btn-primary">Se connecter</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const QUESTION_ID = {{ question.id }};
+let questionData = null;
+let currentUser = null;
+
+async function init() {
+  const ur = await API.get('/api/users/profile/');
+  if (ur.ok) currentUser = ur.data;
+  const r = await API.get(`/api/questions/${QUESTION_ID}/`);
+  if (!r.ok) { document.getElementById('question-card').innerHTML = '<div class="empty-state"><h3>Question introuvable</h3></div>'; return; }
+  questionData = r.data;
+  renderQuestion(r.data);
+  renderAnswers(r.data.answers || []);
+  document.getElementById('answers-section').style.display = 'block';
+}
+
+function renderQuestion(q) {
+  const badge = q.status === 'resolved'
+    ? '<span class="badge badge-success">✅ Résolue</span>'
+    : '<span class="badge badge-primary">🟢 Ouverte</span>';
+
+  const canResolve = currentUser && q.author?.username === currentUser.username && q.status === 'open';
+  const canReport = currentUser && q.author?.username !== currentUser.username;
+
+  document.getElementById('question-card').innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem;">
+      <div style="display:flex;align-items:center;gap:.75rem;">
+        <div class="avatar">${q.display_author?.initials || '?'}</div>
+        <div>
+          <div style="font-weight:600;">${q.display_author?.username || 'Anonyme'}</div>
+          <div style="font-size:.78rem;color:var(--text-muted);">${relativeTime(q.created_at)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        ${q.subject ? `<span class="badge badge-info">${q.subject.name}</span>` : ''}
+        ${badge}
+      </div>
+    </div>
+    <h2 style="margin-bottom:1rem;">${q.title}</h2>
+    <div class="qd-content">${q.content.replace(/\n/g, '<br>')}</div>
+    <div style="display:flex;align-items:center;gap:.75rem;padding-top:1rem;border-top:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-size:.82rem;color:var(--text-muted);">👁 ${q.views_count} vues</span>
+      ${canResolve ? `<button class="btn btn-sm btn-outline" onclick="markResolved()">✅ Marquer résolue</button>` : ''}
+      ${canReport ? `<button class="btn btn-sm btn-ghost" onclick="openModal('report-modal')" style="margin-left:auto;">🚩 Signaler</button>` : ''}
+    </div>`;
+}
+
+function renderAnswers(answers) {
+  document.getElementById('answers-title').textContent = `${answers.length} réponse${answers.length !== 1 ? 's' : ''}`;
+  if (!answers.length) {
+    document.getElementById('answers-list').innerHTML = '<div class="empty-state" style="padding:2rem;"><div class="empty-state-icon">💬</div><h3>Soyez le premier à répondre</h3></div>';
+    return;
+  }
+  document.getElementById('answers-list').innerHTML = answers.map(a => `
+    <div class="answer-card ${a.is_accepted ? 'accepted' : ''}" id="answer-${a.id}">
+      ${a.is_accepted ? '<div style="font-size:.82rem;font-weight:600;color:var(--success);margin-bottom:.85rem;">✅ Meilleure réponse</div>' : ''}
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+        <div class="avatar avatar-sm">${a.author.initials}</div>
+        <div>
+          <div style="font-weight:600;font-size:.9rem;">${a.author.full_name}</div>
+          <div style="font-size:.78rem;color:var(--text-muted);">${a.author.role === 'tuteur' ? '👨‍🏫 Tuteur · ' : ''}${relativeTime(a.created_at)}</div>
+        </div>
+      </div>
+      <div style="line-height:1.75;color:var(--text-primary);">${a.content.replace(/\n/g, '<br>')}</div>
+      <div class="answer-actions">
+        <button class="upvote-btn ${a.has_upvoted ? 'active' : ''}" onclick="toggleUpvote(${a.id}, this)">
+          👍 <span id="upvote-${a.id}">${a.upvotes_count}</span>
+        </button>
+        ${questionData && currentUser && questionData.author?.username === currentUser.username && !a.is_accepted && questionData.status === 'open'
+          ? `<button class="btn btn-sm btn-outline" onclick="acceptAnswer(${a.id})">✅ Accepter</button>` : ''}
+        ${currentUser && a.author.username === currentUser.username
+          ? `<button class="btn btn-sm btn-ghost danger" style="margin-left:auto;" onclick="deleteAnswer(${a.id})">🗑</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function submitAnswer() {
+  const content = document.getElementById('answer-content').value.trim();
+  if (!content) { showToast('Contenu requis.', 'error'); return; }
+  const r = await API.post(`/api/questions/${QUESTION_ID}/answers/`, { content });
+  if (r.ok) { showToast('Réponse publiée !', 'success'); document.getElementById('answer-content').value = ''; init(); }
+  else showToast('Erreur.', 'error');
+}
+
+async function acceptAnswer(id) {
+  const r = await API.post(`/api/questions/answers/${id}/accept/`);
+  if (r.ok) { showToast('Réponse acceptée !', 'success'); init(); }
+}
+
+async function toggleUpvote(id, btn) {
+  const r = await API.post(`/api/questions/answers/${id}/upvote/`);
+  if (r.ok) {
+    document.getElementById('upvote-' + id).textContent = r.data.upvotes_count;
+    btn.classList.toggle('active', r.data.upvoted);
+  }
+}
+
+async function deleteAnswer(id) {
+  if (!confirm('Supprimer cette réponse ?')) return;
+  const r = await API.delete(`/api/questions/answers/${id}/`);
+  if (r.ok) { showToast('Réponse supprimée.', 'success'); init(); }
+}
+
+async function markResolved() {
+  const r = await API.post(`/api/questions/${QUESTION_ID}/resolve/`);
+  if (r.ok) { showToast('Question marquée résolue.', 'success'); init(); }
+}
+
+init();
+</script>
+{% endblock %}

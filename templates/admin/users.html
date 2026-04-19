@@ -1,0 +1,116 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Utilisateurs – Admin StudySOS{% endblock %}
+{% block nav_users %}active{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <div class="admin-page-title">Gestion des utilisateurs</div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1.5rem;">
+  <form method="get" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-group" style="flex:1;min-width:200px;">
+      <label class="form-label">Rechercher</label>
+      <input type="text" name="q" class="form-control" placeholder="username, email…" value="{{ search|default:'' }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rôle</label>
+      <select name="role" class="form-control">
+        <option value="">Tous</option>
+        <option value="etudiant" {% if role_filter == 'etudiant' %}selected{% endif %}>Étudiant</option>
+        <option value="tuteur" {% if role_filter == 'tuteur' %}selected{% endif %}>Tuteur</option>
+        <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrer</button>
+    <a href="/admin-panel/users/" class="btn btn-ghost">Réinitialiser</a>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">{{ users|length }} utilisateur{{ users|length|pluralize }}</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Utilisateur</th>
+          <th>Rôle</th>
+          <th>Statut</th>
+          <th>En ligne</th>
+          <th>Inscrit le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr id="user-row-{{ u.pk }}">
+          <td>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <div class="avatar avatar-sm">
+                {% if u.profile_photo %}<img src="{{ u.profile_photo.url }}" alt="">{% else %}{{ u.get_initials }}{% endif %}
+              </div>
+              <div>
+                <div style="font-weight:600;">{{ u.username }}</div>
+                <div style="font-size:.78rem;color:var(--text-muted);">{{ u.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge {% if u.role == 'tuteur' %}badge-primary{% elif u.role == 'admin' %}badge-danger{% else %}badge-accent{% endif %}">
+              {{ u.get_role_display }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if u.is_active %}badge-success{% else %}badge-danger{% endif %}" id="status-{{ u.pk }}">
+              {% if u.is_active %}✓ Actif{% else %}✕ Désactivé{% endif %}
+            </span>
+          </td>
+          <td>
+            <span class="status-dot {% if u.is_online %}online{% else %}offline{% endif %}"></span>
+          </td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ u.date_joined|date:"d/m/Y" }}</td>
+          <td>
+            {% if u.role != 'admin' %}
+            <div style="display:flex;gap:.5rem;">
+              <button class="btn btn-sm btn-ghost" onclick="toggleUser({{ u.pk }})" title="Activer/Désactiver">
+                {% if u.is_active %}🔒{% else %}🔓{% endif %}
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="deleteUser({{ u.pk }}, '{{ u.username }}')" title="Supprimer">🗑</button>
+            </div>
+            {% else %}
+            <span style="color:var(--text-muted);font-size:.82rem;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Aucun utilisateur trouvé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function toggleUser(pk) {
+  const r = await API.post(`/admin-panel/users/${pk}/toggle/`);
+  if (r.ok) {
+    const badge = document.getElementById('status-' + pk);
+    badge.className = 'badge ' + (r.data.is_active ? 'badge-success' : 'badge-danger');
+    badge.textContent = r.data.is_active ? '✓ Actif' : '✕ Désactivé';
+    showToast('Statut mis à jour.', 'success');
+  } else showToast(r.data.error || 'Erreur.', 'error');
+}
+
+async function deleteUser(pk, username) {
+  if (!confirm(`Supprimer définitivement le compte de ${username} ?`)) return;
+  const r = await API.post(`/admin-panel/users/${pk}/delete/`);
+  if (r.ok) {
+    document.getElementById('user-row-' + pk)?.remove();
+    showToast('Utilisateur supprimé.', 'success');
+  } else showToast(r.data.error || 'Erreur.', 'error');
+}
+</script>
+{% endblock %}

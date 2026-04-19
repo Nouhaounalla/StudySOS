@@ -1,69 +1,55 @@
-from pathlib import Path
-from dotenv import load_dotenv
 import os
-from os import getenv
-
-load_dotenv()  # Load .env file
-
+from pathlib import Path
 from datetime import timedelta
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'users.middleware.ProfileCompletionMiddleware',
-]
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'AUTH_HEADER_TYPES': ('Bearer',),
-}
+from dotenv import load_dotenv
+
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ✅ SECURITY
-SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = os.getenv('DEBUG') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS').split(',')
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-# ✅ APPS
 INSTALLED_APPS = [
-    'daphne',  # Must be FIRST
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',  # ADD THIS for logout
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    'users',
+    'channels',
+    # Local apps
+    'apps.users',
+    'apps.questions',
+    'apps.sessions',
+    'apps.notifications',
+    'apps.admin_panel',
 ]
 
-# ✅ Django REST Framework
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
-}
-
-# ✅ CORS
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'studysos.urls'
 
-# ✅ TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -71,106 +57,77 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'users.context_processors.jwt_user',
             ],
         },
-
     },
 ]
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-
-
 WSGI_APPLICATION = 'studysos.wsgi.application'
+ASGI_APPLICATION = 'studysos.asgi.application'
 
-# ✅ ✅ ✅ SUPABASE DATABASE (PostgreSQL)
-from os import getenv
-
+# Database - Neon PostgreSQL
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': getenv('PGDATABASE'),
-        'USER': getenv('PGUSER'),
-        'PASSWORD': getenv('PGPASSWORD'),
-        'HOST': getenv('PGHOST'),
-        'PORT': getenv('PGPORT', 5432),
-        'OPTIONS': { 
-            'sslmode': 'require',
-            'connect_timeout': 10,
-            'options': '-c statement_timeout=30000',  # 30s query timeout
-        },
-        'DISABLE_SERVER_SIDE_CURSORS': True,
-        'CONN_HEALTH_CHECKS': True,
-        'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
-        'ATOMIC_REQUESTS': True,  # Wrap each request in transaction
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+# Channels
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     }
 }
 
-# Connection pooling for production (optional but recommended)
-if not DEBUG:
-    DATABASES['default']['OPTIONS']['options'] += ' -c idle_in_transaction_session_timeout=60000'
-
-# ✅ Custom User Model
 AUTH_USER_MODEL = 'users.User'
 
-# ✅ Locale
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = 'Africa/Tunis'
 USE_I18N = True
 USE_TZ = True
 
-# ✅ Static / Media
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'apps.users.authentication.CookieJWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+# JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Short-lived
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),    # Longer-lived
-    'ROTATE_REFRESH_TOKENS': True,                     # Security feature
-    'BLACKLIST_AFTER_ROTATION': True,                  # Invalidate old refresh tokens
-    'UPDATE_LAST_LOGIN': True,
-    
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    
-    # Cookie settings (custom - we'll implement these)
-    'AUTH_COOKIE': 'access_token',           # Name of access token cookie
-    'AUTH_COOKIE_REFRESH': 'refresh_token',  # Name of refresh token cookie
-    'AUTH_COOKIE_SECURE': True,              # HTTPS only in production
-    'AUTH_COOKIE_HTTP_ONLY': True,           # Prevent JavaScript access
-    'AUTH_COOKIE_SAME_SITE': 'Lax',          # CSRF protection
-    'AUTH_COOKIE_PATH': '/',                 # Cookie available site-wide
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.getenv('ACCESS_TOKEN_LIFETIME_MINUTES', 60))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('REFRESH_TOKEN_LIFETIME_DAYS', 7))),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_COOKIE': 'access_token',
+    'AUTH_COOKIE_REFRESH': 'refresh_token',
+    'AUTH_COOKIE_SECURE': not DEBUG,
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
-# CORS Configuration for Cookies
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    # Add your production domain here
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
-CORS_ALLOW_CREDENTIALS = True  # CRITICAL: Allows cookies to be sent
-
-# Security Headers
-SESSION_COOKIE_SECURE = True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
-CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read it
-CSRF_USE_SESSIONS = False
-CSRF_COOKIE_SAMESITE = 'Lax'
-
-INSTALLED_APPS += ['channels', 'chat',]
-
-ASGI_APPLICATION = 'studysos.asgi.application'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
-
+CORS_ALLOW_CREDENTIALS = True

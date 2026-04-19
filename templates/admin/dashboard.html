@@ -1,0 +1,117 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Tableau de bord – Admin StudySOS{% endblock %}
+{% block nav_dash %}active{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <div>
+    <div class="admin-page-title">Tableau de bord</div>
+    <div style="color:var(--text-muted);font-size:.88rem;">Bienvenue, {{ user.get_full_name }}</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.75rem;">
+    <div class="avatar">{% if user.profile_photo %}<img src="{{ user.profile_photo.url }}">{% else %}{{ user.get_initials }}{% endif %}</div>
+  </div>
+</div>
+
+<!-- Stats grid -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card-icon" style="background:#dbeafe;">👥</div>
+    <div class="stat-card-label">Utilisateurs totaux</div>
+    <div class="stat-card-value">{{ stats.total_users }}</div>
+    <div class="stat-card-sub">+{{ stats.new_users_month }} ce mois</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon" style="background:#dcfce7;">💬</div>
+    <div class="stat-card-label">Questions</div>
+    <div class="stat-card-value">{{ stats.total_questions }}</div>
+    <div class="stat-card-sub">{{ stats.open_questions }} ouvertes</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon" style="background:#fef3c7;">📅</div>
+    <div class="stat-card-label">Sessions</div>
+    <div class="stat-card-value">{{ stats.total_sessions }}</div>
+    <div class="stat-card-sub">{{ stats.pending_sessions }} en attente</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-icon" style="background:#fee2e2;">🚩</div>
+    <div class="stat-card-label">Signalements</div>
+    <div class="stat-card-value" style="color:{% if stats.pending_reports > 0 %}var(--danger){% else %}inherit{% endif %};">{{ stats.pending_reports }}</div>
+    <div class="stat-card-sub">en attente de traitement</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+  <!-- Recent users -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Nouveaux utilisateurs</span>
+      <a href="/admin-panel/users/" class="btn btn-ghost btn-sm">Voir tout →</a>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Inscrit le</th></tr></thead>
+        <tbody>
+          {% for u in recent_users %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:.65rem;">
+                <div class="avatar avatar-sm">{% if u.profile_photo %}<img src="{{ u.profile_photo.url }}">{% else %}{{ u.get_initials }}{% endif %}</div>
+                <div>
+                  <div style="font-weight:500;">{{ u.username }}</div>
+                  <div style="font-size:.78rem;color:var(--text-muted);">{{ u.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge {% if u.role == 'tuteur' %}badge-primary{% elif u.role == 'admin' %}badge-danger{% else %}badge-accent{% endif %}">{{ u.get_role_display }}</span></td>
+            <td style="font-size:.82rem;">{{ u.date_joined|date:"d/m/Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent questions -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Questions récentes</span>
+      <a href="/admin-panel/questions/" class="btn btn-ghost btn-sm">Voir tout →</a>
+    </div>
+    {% for q in recent_questions %}
+    <div style="padding:.75rem 0;border-bottom:1px solid var(--border);{% if forloop.last %}border-bottom:none;{% endif %}">
+      <div style="font-weight:500;font-size:.9rem;margin-bottom:.2rem;">{{ q.title|truncatechars:60 }}</div>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <span style="font-size:.78rem;color:var(--text-muted);">{{ q.author.username|default:'Anonyme' }}</span>
+        {% if q.subject %}<span class="badge badge-info" style="font-size:.72rem;">{{ q.subject.name }}</span>{% endif %}
+        <span class="badge {% if q.status == 'resolved' %}badge-success{% else %}badge-muted{% endif %}" style="font-size:.72rem;">{{ q.status }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Pending reports -->
+{% if pending_reports %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title" style="color:var(--danger);">🚩 Signalements en attente ({{ stats.pending_reports }})</span>
+    <a href="/admin-panel/reports/" class="btn btn-ghost btn-sm">Gérer →</a>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Question</th><th>Signalé par</th><th>Raison</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for rep in pending_reports %}
+        <tr>
+          <td><a href="/questions/{{ rep.question.id }}/" style="font-weight:500;">{{ rep.question.title|truncatechars:50 }}</a></td>
+          <td>{{ rep.reporter.username }}</td>
+          <td><span class="badge badge-danger">{{ rep.get_reason_display }}</span></td>
+          <td style="font-size:.82rem;">{{ rep.created_at|date:"d/m/Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% block title %}{{ profile_user.get_full_name }} – StudySOS{% endblock %}
+{% block extra_css %}
+<style>
+  .pub-page { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+  .pub-cover { height: 180px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: var(--radius-lg) var(--radius-lg) 0 0; overflow: hidden; }
+  .pub-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .pub-header { background: white; border: 1px solid var(--border); border-radius: 0 0 var(--radius-lg) var(--radius-lg); padding: 0 1.5rem 1.5rem; margin-bottom: 1.5rem; }
+  .pub-identity { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .pub-stats { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1rem; }
+  .stat-item { text-align: center; }
+  .stat-item .val { font-size: 1.4rem; font-weight: 700; }
+  .stat-item .lbl { font-size: .72rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: .04em; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="pub-page">
+  <a href="/tutors/" style="color:var(--text-muted);font-size:.85rem;display:inline-flex;align-items:center;gap:.35rem;margin-bottom:1rem;">← Retour aux tuteurs</a>
+
+  <!-- Header -->
+  <div class="pub-cover">
+    {% if profile_user.cover_photo %}<img src="{{ profile_user.cover_photo.url }}" alt="">{% endif %}
+  </div>
+  <div class="pub-header">
+    <div class="pub-identity">
+      <div style="display:flex;align-items:flex-end;gap:1rem;">
+        <div style="margin-top:-48px;">
+          <div class="avatar" style="width:90px;height:90px;font-size:1.8rem;border:4px solid white;">
+            {% if profile_user.profile_photo %}<img src="{{ profile_user.profile_photo.url }}" alt="">{% else %}{{ profile_user.get_initials }}{% endif %}
+          </div>
+        </div>
+        <div>
+          <h2 style="margin-bottom:.2rem;">{{ profile_user.get_full_name }}</h2>
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            <span style="color:var(--text-muted);font-size:.88rem;">@{{ profile_user.username }}</span>
+            <span class="badge {% if profile_user.role == 'tuteur' %}badge-primary{% else %}badge-accent{% endif %}">
+              {% if profile_user.role == 'tuteur' %}👨‍🏫 Tuteur{% else %}🎓 Étudiant{% endif %}
+            </span>
+            <span class="status-dot {% if profile_user.is_online %}online{% else %}offline{% endif %}"></span>
+          </div>
+          {% if profile_user.location %}<div style="font-size:.82rem;color:var(--text-muted);margin-top:.25rem;">📍 {{ profile_user.location }}</div>{% endif %}
+        </div>
+      </div>
+      {% if user and user.username != profile_user.username %}
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+        {% if profile_user.role == 'tuteur' %}
+        <button class="btn btn-primary" onclick="openModal('book-modal')">📅 Réserver une session</button>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="pub-stats">
+      <div class="stat-item"><div class="val">{{ profile_user.sessions_count }}</div><div class="lbl">Sessions</div></div>
+      <div class="stat-item"><div class="val">{{ profile_user.students_count }}</div><div class="lbl">Étudiants</div></div>
+      <div class="stat-item"><div class="val">{{ profile_user.satisfaction_score|default:0 }}%</div><div class="lbl">Satisfaction</div></div>
+      <div class="stat-item"><div class="val">{{ profile_user.experience_years }}</div><div class="lbl">Ans exp.</div></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:1.5rem;">
+    <!-- Sidebar -->
+    <div>
+      {% if profile_user.bio %}
+      <div class="card" style="margin-bottom:1rem;">
+        <h4 style="font-size:.82rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.75rem;">À propos</h4>
+        <p style="font-size:.88rem;line-height:1.65;">{{ profile_user.bio }}</p>
+      </div>
+      {% endif %}
+
+      {% if profile_user.role == 'tuteur' and profile_user.subjects %}
+      <div class="card" style="margin-bottom:1rem;">
+        <h4 style="font-size:.82rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.75rem;">Matières</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
+          {% for s in profile_user.subjects %}<span class="badge badge-primary">{{ s }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if profile_user.role == 'tuteur' and profile_user.availability %}
+      <div class="card">
+        <h4 style="font-size:.82rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.75rem;">Disponibilités</h4>
+        {% with days="Lundi,Mardi,Mercredi,Jeudi,Vendredi,Samedi,Dimanche" %}
+        {% for day in days.split %}
+        <div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.83rem;">
+          <span>{{ day }}</span>
+        </div>
+        {% endfor %}
+        {% endwith %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Questions -->
+    <div>
+      <h3 style="margin-bottom:1rem;">Questions publiées</h3>
+      <div id="pub-questions"><div style="text-align:center;padding:2rem;color:var(--text-muted);">Chargement…</div></div>
+    </div>
+  </div>
+</div>
+
+{% if user and user.username != profile_user.username and profile_user.role == 'tuteur' %}
+<div class="modal-overlay" id="book-modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📅 Réserver une session avec {{ profile_user.get_full_name }}</span>
+      <button class="modal-close" onclick="closeModal('book-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Titre *</label><input type="text" id="book-title" class="form-control" placeholder="Objet de la session"></div>
+      <div class="form-group">
+        <label class="form-label">Matière</label>
+        <select id="book-subject" class="form-control"><option value="">Choisir</option></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Début *</label><input type="datetime-local" id="book-start" class="form-control"></div>
+        <div class="form-group"><label class="form-label">Fin *</label><input type="datetime-local" id="book-end" class="form-control"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Description</label><textarea id="book-desc" class="form-control" rows="3"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('book-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitBooking()">Envoyer</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+const TUTOR_ID = {{ profile_user.pk }};
+
+async function loadQuestions() {
+  const r = await API.get('/api/questions/');
+  const el = document.getElementById('pub-questions');
+  if (!r.ok) { el.innerHTML = ''; return; }
+  const questions = r.data.filter(q => q.author?.username === '{{ profile_user.username }}');
+  if (!questions.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❓</div><h3>Aucune question publiée</h3></div>'; return; }
+  el.innerHTML = questions.map(q => `
+    <div class="question-card" onclick="window.location.href='/questions/${q.id}/'">
+      <div class="question-title">${q.title}</div>
+      <div class="question-excerpt">${q.content}</div>
+      <div class="question-footer">
+        <span class="badge ${q.status === 'resolved' ? 'badge-success' : 'badge-primary'}">${q.status === 'resolved' ? '✅ Résolue' : '🟢 Ouverte'}</span>
+        <span style="font-size:.82rem;color:var(--text-muted);">💬 ${q.answers_count}</span>
+      </div>
+    </div>`).join('');
+}
+
+async function loadSubjects() {
+  const r = await API.get('/api/questions/subjects/');
+  if (!r.ok) return;
+  const sel = document.getElementById('book-subject');
+  if (sel) r.data.forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+}
+
+async function submitBooking() {
+  const title = document.getElementById('book-title')?.value.trim();
+  const start = document.getElementById('book-start')?.value;
+  const end = document.getElementById('book-end')?.value;
+  if (!title || !start || !end) { showToast('Champs requis manquants.', 'error'); return; }
+  const data = { tutor_id: TUTOR_ID, title, start_datetime: start, end_datetime: end, description: document.getElementById('book-desc')?.value || '' };
+  const subj = document.getElementById('book-subject')?.value;
+  if (subj) data.subject_id = parseInt(subj);
+  const r = await API.post('/api/sessions/', data);
+  if (r.ok) { showToast('Demande envoyée !', 'success'); closeModal('book-modal'); }
+  else showToast(Object.values(r.data).flat().join(' ') || 'Erreur.', 'error');
+}
+
+loadQuestions();
+loadSubjects();
+</script>
+{% endblock %}

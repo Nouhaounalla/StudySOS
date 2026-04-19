@@ -1,0 +1,94 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Questions – Admin StudySOS{% endblock %}
+{% block nav_questions %}active{% endblock %}
+{% block content %}
+<div class="admin-header">
+  <div class="admin-page-title">Modération des questions</div>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <form method="get" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+    <div class="form-group" style="flex:1;min-width:200px;">
+      <label class="form-label">Rechercher</label>
+      <input type="text" name="q" class="form-control" placeholder="titre, contenu…" value="{{ request.GET.q|default:'' }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Statut</label>
+      <select name="status" class="form-control">
+        <option value="">Tous</option>
+        <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Ouvertes</option>
+        <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Résolues</option>
+        <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Fermées</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Matière</label>
+      <select name="subject" class="form-control">
+        <option value="">Toutes</option>
+        {% for s in subjects %}<option value="{{ s.slug }}">{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrer</button>
+    <a href="/admin-panel/questions/" class="btn btn-ghost">Réinitialiser</a>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">{{ questions|length }} question{{ questions|length|pluralize }}</span>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Titre</th>
+          <th>Auteur</th>
+          <th>Matière</th>
+          <th>Statut</th>
+          <th>Réponses</th>
+          <th>Vues</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in questions %}
+        <tr id="q-row-{{ q.pk }}">
+          <td>
+            <a href="/questions/{{ q.pk }}/" target="_blank" style="font-weight:500;color:var(--text-primary);">
+              {{ q.title|truncatechars:55 }}
+            </a>
+            {% if q.is_anonymous %}<span class="badge badge-muted" style="font-size:.7rem;">anonyme</span>{% endif %}
+          </td>
+          <td style="font-size:.85rem;">{{ q.author.username|default:'Anonyme' }}</td>
+          <td>{% if q.subject %}<span class="badge badge-info">{{ q.subject.name }}</span>{% else %}—{% endif %}</td>
+          <td>
+            <span class="badge {% if q.status == 'resolved' %}badge-success{% elif q.status == 'closed' %}badge-danger{% else %}badge-primary{% endif %}">
+              {{ q.status }}
+            </span>
+          </td>
+          <td style="text-align:center;">{{ q.answers_count }}</td>
+          <td style="text-align:center;">{{ q.views_count }}</td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ q.created_at|date:"d/m/Y" }}</td>
+          <td>
+            <button class="btn btn-sm btn-danger" onclick="deleteQuestion({{ q.pk }})">🗑</button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Aucune question.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function deleteQuestion(pk) {
+  if (!confirm('Supprimer cette question définitivement ?')) return;
+  const r = await API.post(`/admin-panel/questions/${pk}/delete/`);
+  if (r.ok) { document.getElementById('q-row-' + pk)?.remove(); showToast('Question supprimée.', 'success'); }
+  else showToast('Erreur.', 'error');
+}
+</script>
+{% endblock %}

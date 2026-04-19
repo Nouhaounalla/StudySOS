@@ -1,16 +1,17 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
-    path('', lambda request: redirect('api/users/')),
-    path('admin/', admin.site.urls),
-    path('api/users/', include('users.urls')),
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('django-admin/', admin.site.urls),
+    path('api/users/', include('apps.users.urls')),
+    path('api/questions/', include('apps.questions.urls')),
+    path('api/sessions/', include('apps.sessions.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
+    # Template views
+    path('', include('apps.users.template_urls')),
+    path('questions/', include('apps.questions.template_urls')),
+    path('sessions/', include('apps.sessions.template_urls')),
+    path('admin-panel/', include('apps.admin_panel.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,112 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}StudySOS{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% block navbar %}
+<nav class="navbar">
+  <div class="container">
+    <a href="/" class="navbar-brand">📚 Study<span>SOS</span></a>
+    <ul class="navbar-nav">
+      <li><a href="/questions/" class="{% block nav_questions %}{% endblock %}">Questions</a></li>
+      <li><a href="/tutors/" class="{% block nav_tutors %}{% endblock %}">Tuteurs</a></li>
+      {% if user %}<li><a href="/sessions/" class="{% block nav_sessions %}{% endblock %}">Sessions</a></li>{% endif %}
+    </ul>
+    <div class="navbar-actions">
+      {% if user %}
+        <!-- Notification bell -->
+        <div class="dropdown" style="position:relative;">
+          <button class="notif-btn" data-dropdown="notif-menu" title="Notifications">
+            🔔
+            <span class="notif-badge" id="notif-badge" style="display:none;"></span>
+          </button>
+          <div class="notif-dropdown" id="notif-menu">
+            <div class="notif-dropdown-header">
+              <span>Notifications</span>
+              <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Tout lire</button>
+            </div>
+            <div id="notif-list"><div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.85rem;">Chargement…</div></div>
+          </div>
+        </div>
+        <!-- User menu -->
+        <div class="dropdown">
+          <div data-dropdown="user-menu" style="cursor:pointer;">
+            <div class="avatar avatar-sm">
+              {% if user.profile_photo %}<img src="{{ user.profile_photo.url }}" alt="">{% else %}{{ user.get_initials }}{% endif %}
+            </div>
+          </div>
+          <div class="dropdown-menu" id="user-menu">
+            <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
+              <div style="font-weight:600;font-size:.9rem;">{{ user.get_full_name }}</div>
+              <div style="font-size:.78rem;color:var(--text-muted);">{{ user.get_role_display }}</div>
+            </div>
+            <a href="/profile/" class="dropdown-item">👤 Mon profil</a>
+            {% if user.role == 'admin' %}<a href="/admin-panel/" class="dropdown-item">⚙️ Administration</a>{% endif %}
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item danger" onclick="logout()">🚪 Déconnexion</button>
+          </div>
+        </div>
+      {% else %}
+        <a href="/auth/" class="btn btn-outline btn-sm">Connexion</a>
+        <a href="/auth/" class="btn btn-primary btn-sm">S'inscrire</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+<div class="page-wrapper">
+  {% block content %}{% endblock %}
+</div>
+
+<div id="toast-container"></div>
+<script src="{% static 'js/api.js' %}"></script>
+
+<script>
+async function logout() {
+  await API.post('/api/users/logout/');
+  window.location.href = '/auth/';
+}
+async function markAllRead() {
+  await API.post('/api/notifications/mark-all-read/');
+  document.getElementById('notif-badge').style.display = 'none';
+  loadNotifications();
+}
+async function loadNotifications() {
+  const r = await API.get('/api/notifications/');
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  if (!r.ok || !r.data.length) {
+    list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:.85rem;">Aucune notification</div>';
+    return;
+  }
+  list.innerHTML = r.data.slice(0, 8).map(n => `
+    <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="readNotif(${n.id})">
+      <div style="font-size:1.2rem;">${n.notif_type === 'new_answer' ? '💬' : n.notif_type === 'session_request' ? '📅' : '🔔'}</div>
+      <div>
+        <div class="notif-item-text">${n.message}</div>
+        <div class="notif-item-time">${relativeTime(n.created_at)}</div>
+      </div>
+    </div>`).join('');
+}
+async function readNotif(id) {
+  await API.patch(`/api/notifications/${id}/read/`);
+  loadNotifications();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const menu = document.getElementById('notif-menu');
+  if (menu) {
+    document.querySelector('[data-dropdown="notif-menu"]')?.addEventListener('click', loadNotifications);
+  }
+});
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

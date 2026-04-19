@@ -1,0 +1,12 @@
+[
+  {"model": "questions.subject", "pk": 1, "fields": {"name": "Mathématiques", "slug": "mathematiques", "icon": "📐", "color": "#3b82f6"}},
+  {"model": "questions.subject", "pk": 2, "fields": {"name": "Physique", "slug": "physique", "icon": "⚛️", "color": "#8b5cf6"}},
+  {"model": "questions.subject", "pk": 3, "fields": {"name": "Informatique", "slug": "informatique", "icon": "💻", "color": "#0d9488"}},
+  {"model": "questions.subject", "pk": 4, "fields": {"name": "Chimie", "slug": "chimie", "icon": "🧪", "color": "#f59e0b"}},
+  {"model": "questions.subject", "pk": 5, "fields": {"name": "Biologie", "slug": "biologie", "icon": "🧬", "color": "#22c55e"}},
+  {"model": "questions.subject", "pk": 6, "fields": {"name": "Français", "slug": "francais", "icon": "📝", "color": "#ef4444"}},
+  {"model": "questions.subject", "pk": 7, "fields": {"name": "Anglais", "slug": "anglais", "icon": "🌍", "color": "#06b6d4"}},
+  {"model": "questions.subject", "pk": 8, "fields": {"name": "Histoire-Géo", "slug": "histoire-geo", "icon": "🗺️", "color": "#a16207"}},
+  {"model": "questions.subject", "pk": 9, "fields": {"name": "Économie", "slug": "economie", "icon": "📊", "color": "#7c3aed"}},
+  {"model": "questions.subject", "pk": 10, "fields": {"name": "Philosophie", "slug": "philosophie", "icon": "🤔", "color": "#9f1239"}}
+]
