@@ -1,20 +1,20 @@
 {% extends 'layouts/base.html' %}
 {% load static %}
-{% block title %}Mes Sessions – StudySOS{% endblock %}
-{% block nav_sessions %}active{% endblock %}
+{% block title %}Mes Tutoringsessions – StudySOS{% endblock %}
+{% block nav_tutoringsessions %}active{% endblock %}
 {% block extra_css %}
 <style>
-  .sessions-page { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-  .sessions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 600px) { .sessions-grid { grid-template-columns: 1fr; } }
+  .tutoringsessions-page { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  .tutoringsessions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 600px) { .tutoringsessions-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 {% block content %}
-<div class="sessions-page">
+<div class="tutoringsessions-page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
     <div>
-      <h1 style="margin-bottom:.25rem;">Mes sessions d'aide</h1>
-      <p>Gérez vos sessions programmées avec des tuteurs</p>
+      <h1 style="margin-bottom:.25rem;">Mes tutoringsessions d'aide</h1>
+      <p>Gérez vos tutoringsessions programmées avec des tuteurs</p>
     </div>
     <a href="/tutors/" class="btn btn-primary">📅 Réserver une session</a>
   </div>
@@ -26,13 +26,13 @@
 
   <div id="tab-student" class="tab-panel active">
     <div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
-      <button class="chip active" onclick="filterSessions('all','student',this)">Toutes</button>
-      <button class="chip" onclick="filterSessions('pending','student',this)">En attente</button>
-      <button class="chip" onclick="filterSessions('confirmed','student',this)">Confirmées</button>
-      <button class="chip" onclick="filterSessions('completed','student',this)">Terminées</button>
-      <button class="chip" onclick="filterSessions('cancelled','student',this)">Annulées</button>
+      <button class="chip active" onclick="filterTutoringsessions('all','student',this)">Toutes</button>
+      <button class="chip" onclick="filterTutoringsessions('pending','student',this)">En attente</button>
+      <button class="chip" onclick="filterTutoringsessions('confirmed','student',this)">Confirmées</button>
+      <button class="chip" onclick="filterTutoringsessions('completed','student',this)">Terminées</button>
+      <button class="chip" onclick="filterTutoringsessions('cancelled','student',this)">Annulées</button>
     </div>
-    <div class="sessions-grid" id="student-sessions">
+    <div class="tutoringsessions-grid" id="student-tutoringsessions">
       <div style="text-align:center;padding:2rem;color:var(--text-muted);grid-column:1/-1;">Chargement…</div>
     </div>
   </div>
@@ -40,12 +40,12 @@
   {% if user.role == 'tuteur' %}
   <div id="tab-tutor" class="tab-panel">
     <div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
-      <button class="chip active" onclick="filterSessions('all','tutor',this)">Toutes</button>
-      <button class="chip" onclick="filterSessions('pending','tutor',this)">En attente</button>
-      <button class="chip" onclick="filterSessions('confirmed','tutor',this)">Confirmées</button>
-      <button class="chip" onclick="filterSessions('completed','tutor',this)">Terminées</button>
+      <button class="chip active" onclick="filterTutoringsessions('all','tutor',this)">Toutes</button>
+      <button class="chip" onclick="filterTutoringsessions('pending','tutor',this)">En attente</button>
+      <button class="chip" onclick="filterTutoringsessions('confirmed','tutor',this)">Confirmées</button>
+      <button class="chip" onclick="filterTutoringsessions('completed','tutor',this)">Terminées</button>
     </div>
-    <div class="sessions-grid" id="tutor-sessions">
+    <div class="tutoringsessions-grid" id="tutor-tutoringsessions">
       <div style="text-align:center;padding:2rem;color:var(--text-muted);grid-column:1/-1;">Chargement…</div>
     </div>
   </div>
@@ -87,9 +87,9 @@ function sessionCard(s, role) {
   </div>`;
 }
 
-async function loadSessions(role) {
-  const r = await API.get('/api/sessions/?role=' + role);
-  const el = document.getElementById(role + '-sessions');
+async function loadTutoringsessions(role) {
+  const r = await API.get('/api/tutoringsessions/?role=' + role);
+  const el = document.getElementById(role + '-tutoringsessions');
   if (!r.ok || !r.data.length) {
     el.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">📅</div><h3>Aucune session</h3></div>`;
     return;
@@ -97,25 +97,25 @@ async function loadSessions(role) {
   el.innerHTML = r.data.map(s => sessionCard(s, role)).join('');
 }
 
-async function filterSessions(status, role, el) {
+async function filterTutoringsessions(status, role, el) {
   document.querySelectorAll('#tab-' + role + ' .chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   const param = status === 'all' ? '' : '&status=' + status;
-  const r = await API.get('/api/sessions/?role=' + role + param);
-  const container = document.getElementById(role + '-sessions');
+  const r = await API.get('/api/tutoringsessions/?role=' + role + param);
+  const container = document.getElementById(role + '-tutoringsessions');
   if (!r.ok || !r.data.length) { container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">📅</div><h3>Aucune session</h3></div>'; return; }
   container.innerHTML = r.data.map(s => sessionCard(s, role)).join('');
 }
 
 async function updateSession(id, status) {
-  const r = await API.patch('/api/sessions/' + id + '/', { status });
-  if (r.ok) { showToast('Session mise à jour.', 'success'); loadSessions('student'); loadSessions('tutor'); }
+  const r = await API.patch('/api/tutoringsessions/' + id + '/', { status });
+  if (r.ok) { showToast('Session mise à jour.', 'success'); loadTutoringsessions('student'); loadTutoringsessions('tutor'); }
 }
 
 let reviewSessionId = null;
 function openReview(id) { reviewSessionId = id; openModal('review-modal'); }
 
-loadSessions('student');
-{% if user.role == 'tuteur' %}loadSessions('tutor');{% endif %}
+loadTutoringsessions('student');
+{% if user.role == 'tuteur' %}loadTutoringsessions('tutor');{% endif %}
 </script>
 {% endblock %}

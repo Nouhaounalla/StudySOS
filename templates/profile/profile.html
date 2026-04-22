@@ -112,7 +112,7 @@
       <div class="tabs" style="margin-bottom:1.5rem;">
         <button class="tab-btn active" data-tab="tab-feed">Feed</button>
         <button class="tab-btn" data-tab="tab-questions">Mes questions</button>
-        <button class="tab-btn" data-tab="tab-sessions">Sessions</button>
+        <button class="tab-btn" data-tab="tab-tutoringsessions">Tutoringsessions</button>
         <button class="tab-btn" data-tab="tab-settings">Paramètres</button>
       </div>
 
@@ -130,8 +130,8 @@
         <div id="questions-list-tab"></div>
       </div>
 
-      <div id="tab-sessions" class="tab-panel">
-        <div id="sessions-list-tab"></div>
+      <div id="tab-tutoringsessions" class="tab-panel">
+        <div id="tutoringsessions-list-tab"></div>
       </div>
 
       <div id="tab-settings" class="tab-panel">
@@ -202,7 +202,7 @@ async function loadProfile() {
   profileData = r.data;
   renderProfile(r.data);
   loadMyQuestions();
-  loadMySessions();
+  loadMyTutoringsessions();
 }
 
 function renderProfile(p) {
@@ -233,7 +233,7 @@ function renderProfile(p) {
 
   // Stats
   document.getElementById('profile-stats').innerHTML = `
-    <div class="stat-item"><div class="val">${p.sessions_count}</div><div class="lbl">Sessions</div></div>
+    <div class="stat-item"><div class="val">${p.tutoringsessions_count}</div><div class="lbl">Tutoringsessions</div></div>
     <div class="stat-item"><div class="val">${p.students_count}</div><div class="lbl">Étudiants</div></div>
     <div class="stat-item"><div class="val">${p.satisfaction_score || 0}%</div><div class="lbl">Satisfaction</div></div>`;
 
@@ -294,9 +294,9 @@ async function loadMyQuestions() {
   el.innerHTML = html; el2.innerHTML = html;
 }
 
-async function loadMySessions() {
-  const r = await API.get('/api/sessions/');
-  const el = document.getElementById('sessions-list-tab');
+async function loadMyTutoringsessions() {
+  const r = await API.get('/api/tutoringsessions/');
+  const el = document.getElementById('tutoringsessions-list-tab');
   if (!r.ok || !r.data.length) { el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><h3>Aucune session</h3><a href="/tutors/" class="btn btn-primary">Trouver un tuteur</a></div>'; return; }
   el.innerHTML = r.data.map(s => `
     <div class="session-card" style="margin-bottom:1rem;">
@@ -346,9 +346,20 @@ async function changePassword() {
   else showToast(Object.values(r.data).flat().join(' ') || 'Erreur.', 'error');
 }
 
-function confirmDeleteAccount() {
-  if (confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
-    API.delete('/api/users/delete/').then(r => { if (r.ok) window.location.href = '/auth/'; });
+async function confirmDeleteAccount() {
+  if (!confirm("Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.")) return;
+
+  const res = await fetch("/api/users/delete/", {
+    method: "DELETE",
+    credentials: "include"
+  });
+
+  if (res.ok) {
+    window.location.href = "/auth/";
+  } else {
+    const data = await res.json().catch(() => ({}));
+    console.log(data);
+    alert("Erreur lors de la suppression du compte.");
   }
 }
 

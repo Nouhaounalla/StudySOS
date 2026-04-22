@@ -31,7 +31,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=50, blank=True)
     last_name = models.CharField(max_length=50, blank=True)
     phone = models.CharField(max_length=20, blank=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='etudiant')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=True, blank=True)
     bio = models.TextField(blank=True)
     purpose = models.CharField(max_length=255, blank=True)
     profile_photo = models.ImageField(upload_to='profiles/', null=True, blank=True)
@@ -49,7 +49,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     availability = models.JSONField(default=dict, blank=True)  # weekly availability slots
 
     # Stats (denormalized for performance)
-    sessions_count = models.IntegerField(default=0)
+    tutoringsessions_count = models.IntegerField(default=0)
     students_count = models.IntegerField(default=0)
     satisfaction_score = models.FloatField(default=0.0)
     experience_years = models.IntegerField(default=0)

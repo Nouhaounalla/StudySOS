@@ -4,7 +4,7 @@ from apps.users.serializers import PublicUserSerializer
 from apps.questions.serializers import SubjectSerializer
 
 
-class SessionSerializer(serializers.ModelSerializer):
+class Tutoringsessionserializer(serializers.ModelSerializer):
     student = PublicUserSerializer(read_only=True)
     tutor = PublicUserSerializer(read_only=True)
     tutor_id = serializers.IntegerField(write_only=True)

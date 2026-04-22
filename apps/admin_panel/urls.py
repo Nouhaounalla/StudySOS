@@ -10,6 +10,6 @@ urlpatterns = [
     path('questions/<int:pk>/delete/', views.delete_question, name='admin-question-delete'),
     path('reports/', views.manage_reports, name='admin-reports'),
     path('reports/<int:pk>/resolve/', views.resolve_report, name='admin-report-resolve'),
-    path('sessions/', views.manage_sessions, name='admin-sessions'),
+    path('tutoringsessions/', views.manage_tutoringsessions, name='admin-tutoringsessions'),
     path('statistics/', views.statistics, name='admin-statistics'),
 ]

@@ -15,7 +15,7 @@ studysos/
 ├── apps/
 │   ├── users/          # Auth, profils, WebSocket, messagerie
 │   ├── questions/      # Questions, réponses, matières
-│   ├── sessions/       # Sessions d'aide, avis
+│   ├── tutoringsessions/       # Tutoringsessions d'aide, avis
 │   ├── notifications/  # Notifications temps réel
 │   └── admin_panel/    # Tableau de bord administrateur
 ├── templates/
@@ -23,8 +23,8 @@ studysos/
 │   ├── auth/auth.html
 │   ├── profile/        # profile.html, profile_info.html, tutors.html, public_profile.html
 │   ├── questions/      # questions.html, question_detail.html
-│   ├── sessions/       # sessions.html
-│   └── admin/          # dashboard, users, questions, reports, sessions, statistics
+│   ├── tutoringsessions/       # tutoringsessions.html
+│   └── admin/          # dashboard, users, questions, reports, tutoringsessions, statistics
 └── static/
     ├── css/main.css
     └── js/api.js
@@ -78,7 +78,7 @@ DATABASE_URL=postgresql://user:password@ep-xxx.us-east-1.aws.neon.tech/studysos?
 ```bash
 python manage.py makemigrations users
 python manage.py makemigrations questions
-python manage.py makemigrations sessions
+python manage.py makemigrations tutoringsessions
 python manage.py makemigrations notifications
 python manage.py makemigrations admin_panel
 python manage.py migrate
@@ -126,7 +126,7 @@ daphne -b 0.0.0.0 -p 8000 studysos.asgi:application
 | `/questions/` | Liste des questions |
 | `/questions/<id>/` | Détail d'une question |
 | `/tutors/` | Annuaire des tuteurs |
-| `/sessions/` | Mes sessions |
+| `/tutoringsessions/` | Mes tutoringsessions |
 | `/admin-panel/` | Tableau de bord admin |
 
 ### API REST
@@ -140,8 +140,8 @@ daphne -b 0.0.0.0 -p 8000 studysos.asgi:application
 | `GET /api/questions/` | Liste questions |
 | `POST /api/questions/` | Publier question |
 | `GET /api/questions/subjects/` | Matières |
-| `GET /api/sessions/` | Mes sessions |
-| `POST /api/sessions/` | Réserver session |
+| `GET /api/tutoringsessions/` | Mes tutoringsessions |
+| `POST /api/tutoringsessions/` | Réserver session |
 | `GET /api/notifications/` | Mes notifications |
 | `WS /ws/chat/<room>/` | WebSocket messagerie |
 | `WS /ws/notifications/` | WebSocket notifs |
@@ -165,9 +165,9 @@ daphne -b 0.0.0.0 -p 8000 studysos.asgi:application
 - Marquer une question comme résolue
 - Signalement de questions
 
-### Sprint 3 – Sessions & Notifications ✅
-- Réservation de sessions avec tuteurs
-- Confirmation / annulation de sessions
+### Sprint 3 – Tutoringsessions & Notifications ✅
+- Réservation de tutoringsessions avec tuteurs
+- Confirmation / annulation de tutoringsessions
 - Système d'évaluation (rating 1–5)
 - Notifications temps réel via WebSocket
 - Mise à jour du score de satisfaction du tuteur
@@ -188,7 +188,7 @@ daphne -b 0.0.0.0 -p 8000 studysos.asgi:application
 Chaque app utilise un `label` différent pour éviter les conflits :
 - `users` → `apps.users`
 - `questions` → `apps.questions`
-- `study_sessions` → `apps.sessions`
+- `study_tutoringsessions` → `apps.tutoringsessions`
 - `notifications` → `apps.notifications`
 - `admin_panel` → `apps.admin_panel`
 

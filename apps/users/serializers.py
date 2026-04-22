@@ -34,12 +34,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'first_name', 'last_name', 'full_name',
             'initials', 'phone', 'role', 'bio', 'purpose', 'location',
             'profile_photo', 'cover_photo', 'date_of_birth', 'is_online',
-            'subjects', 'availability', 'sessions_count', 'students_count',
+            'subjects', 'availability', 'tutoringsessions_count', 'students_count',
             'satisfaction_score', 'experience_years', 'date_joined', 'profile_completion'
         ]
-        read_only_fields = ['id', 'email', 'role', 'date_joined', 'sessions_count',
-                            'students_count', 'satisfaction_score']
-
+        read_only_fields = ['id', 'email', 'date_joined', 'tutoringsessions_count',
+                    'students_count', 'satisfaction_score']
     def get_full_name(self, obj):
         return obj.get_full_name()
 
@@ -57,7 +56,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'full_name', 'initials', 'role', 'bio',
-                  'profile_photo', 'subjects', 'sessions_count', 'satisfaction_score',
+                  'profile_photo', 'subjects', 'tutoringsessions_count', 'satisfaction_score',
                   'is_online', 'location']
 
     def get_full_name(self, obj):

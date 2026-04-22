@@ -52,7 +52,7 @@
     </div>
 
     <div class="pub-stats">
-      <div class="stat-item"><div class="val">{{ profile_user.sessions_count }}</div><div class="lbl">Sessions</div></div>
+      <div class="stat-item"><div class="val">{{ profile_user.tutoringsessions_count }}</div><div class="lbl">Tutoringsessions</div></div>
       <div class="stat-item"><div class="val">{{ profile_user.students_count }}</div><div class="lbl">Étudiants</div></div>
       <div class="stat-item"><div class="val">{{ profile_user.satisfaction_score|default:0 }}%</div><div class="lbl">Satisfaction</div></div>
       <div class="stat-item"><div class="val">{{ profile_user.experience_years }}</div><div class="lbl">Ans exp.</div></div>
@@ -163,7 +163,7 @@ async function submitBooking() {
   const data = { tutor_id: TUTOR_ID, title, start_datetime: start, end_datetime: end, description: document.getElementById('book-desc')?.value || '' };
   const subj = document.getElementById('book-subject')?.value;
   if (subj) data.subject_id = parseInt(subj);
-  const r = await API.post('/api/sessions/', data);
+  const r = await API.post('/api/tutoringsessions/', data);
   if (r.ok) { showToast('Demande envoyée !', 'success'); closeModal('book-modal'); }
   else showToast(Object.values(r.data).flat().join(' ') || 'Erreur.', 'error');
 }

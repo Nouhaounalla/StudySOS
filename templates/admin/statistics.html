@@ -25,9 +25,9 @@
     <div class="chart-bar-wrap" id="reg-chart"></div>
   </div>
 
-  <!-- Sessions breakdown -->
+  <!-- Tutoringsessions breakdown -->
   <div class="card">
-    <div class="card-header"><span class="card-title">Statut des sessions</span></div>
+    <div class="card-header"><span class="card-title">Statut des tutoringsessions</span></div>
     <div class="donut-wrap" id="session-chart" style="padding:.5rem 0;"></div>
   </div>
 </div>
@@ -42,7 +42,7 @@
 <script>
 const regData = {{ user_registrations|safe }};
 const subjectData = {{ questions_by_subject|safe }};
-const sessionStats = {{ session_stats|safe }};
+const tutoringsessionstats = {{ session_stats|safe }};
 
 // Registrations bar chart
 const maxReg = Math.max(...regData.map(d => d.count), 1);
@@ -53,11 +53,11 @@ document.getElementById('reg-chart').innerHTML = regData.map(d => `
     <div class="chart-bar-label">${d.date}</div>
   </div>`).join('');
 
-// Sessions donut-style legend
+// Tutoringsessions donut-style legend
 const sessionColors = { pending: '#f59e0b', confirmed: '#0d9488', completed: '#22c55e', cancelled: '#ef4444' };
 const sessionLabels = { pending: 'En attente', confirmed: 'Confirmées', completed: 'Terminées', cancelled: 'Annulées' };
-const total = Object.values(sessionStats).reduce((a, b) => a + b, 0) || 1;
-document.getElementById('session-chart').innerHTML = Object.entries(sessionStats).map(([k, v]) => `
+const total = Object.values(tutoringsessionstats).reduce((a, b) => a + b, 0) || 1;
+document.getElementById('session-chart').innerHTML = Object.entries(tutoringsessionstats).map(([k, v]) => `
   <div class="legend-item">
     <div class="legend-dot" style="background:${sessionColors[k]};"></div>
     <span style="flex:1;">${sessionLabels[k]}</span>

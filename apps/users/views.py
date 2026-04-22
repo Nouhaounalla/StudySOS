@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate
 from django.conf import settings
 from .models import User
 from .serializers import RegisterSerializer, UserProfileSerializer, PublicUserSerializer, ChangePasswordSerializer
-
+from django.db import transaction
 
 def set_auth_cookies(response, user):
     refresh = RefreshToken.for_user(user)
@@ -139,12 +139,34 @@ def change_password(request):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_account(request):
-    request.user.delete()
+    user = request.user
+    
+    # Create response FIRST while user still exists in context
     response = Response({'message': 'Account deleted.'})
-    response.delete_cookie(settings.SIMPLE_JWT.get('AUTH_COOKIE', 'access_token'))
-    response.delete_cookie(settings.SIMPLE_JWT.get('AUTH_COOKIE_REFRESH', 'refresh_token'))
+    
+    # Delete cookies using your JWT auth cookie names
+    access_cookie = getattr(settings, 'SIMPLE_JWT', {}).get('AUTH_COOKIE', 'access_token')
+    refresh_cookie = getattr(settings, 'SIMPLE_JWT', {}).get('AUTH_COOKIE_REFRESH', 'refresh_token')
+    
+    response.delete_cookie(access_cookie)
+    response.delete_cookie(refresh_cookie)
+    
+    # Delete user LAST (after response is fully prepared)
+    # Use transaction in case related objects block deletion
+    try:
+        with transaction.atomic():
+            user.delete()
+    except Exception as e:
+        # Log the actual error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Account deletion failed: {str(e)}")
+        return Response(
+            {'error': f'Deletion failed: {str(e)}'}, 
+            status=500
+        )
+    
     return response
-
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

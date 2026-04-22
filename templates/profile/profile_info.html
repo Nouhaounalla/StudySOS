@@ -14,6 +14,61 @@
   .photo-upload { display: flex; align-items: center; gap: 1.25rem; }
   .photo-preview { width: 80px; height: 80px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; border: 3px solid var(--border); flex-shrink: 0; }
   .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+  /* ── Role selector ── */
+  .role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .role-option { position: relative; }
+  .role-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+  .role-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .5rem; padding: 1.1rem .75rem;
+    border: 2px solid var(--border, #e2e8f0); border-radius: 12px;
+    background: white; cursor: pointer;
+    transition: border-color .18s, background .18s, transform .12s;
+    text-align: center; user-select: none;
+  }
+  .role-btn:hover { border-color: #0bceae; background: #f0fdfb; transform: translateY(-1px); }
+  .role-icon {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: #f1faf8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    transition: background .18s;
+  }
+  .role-label { font-size: .9rem; font-weight: 600; color: #0f172a; }
+  .role-desc { font-size: .75rem; color: #94a3b8; line-height: 1.4; }
+
+  /* Selected state */
+  .role-option input[type="radio"]:checked + .role-btn {
+    border-color: #0bceae;
+    background: #f0fdfb;
+    box-shadow: 0 0 0 3px rgba(11,206,174,.12);
+  }
+  .role-option input[type="radio"]:checked + .role-btn .role-icon {
+    background: #0bceae;
+  }
+  .role-option input[type="radio"]:checked + .role-btn .role-label {
+    color: #0bceae;
+  }
+  /* Checkmark badge */
+  .role-btn::after {
+    content: '';
+    position: absolute; top: 10px; right: 10px;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: white;
+    transition: border-color .18s, background .18s;
+  }
+  .role-option input[type="radio"]:checked + .role-btn::after {
+    border-color: #0bceae;
+    background: #0bceae url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 5.5L4 7.5L8 3' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E") center/12px no-repeat;
+  }
+
+  /* Required indicator */
+  .role-required {
+    font-size: .75rem; color: #ef4444;
+    display: none; margin-top: .3rem;
+  }
+  .role-required.visible { display: block; }
 </style>
 {% endblock %}
 {% block content %}
@@ -59,6 +114,29 @@
         <label class="form-label">Localisation</label>
         <input type="text" id="location" class="form-control" placeholder="Ex: Tunis, Tunisie" oninput="updateProgress()">
       </div>
+         <!-- Role selector -->
+      <div class="form-group">
+        <label class="form-label">Je suis un… <span style="color:#ef4444;">*</span></label>
+        <div class="role-selector">
+          <label class="role-option">
+            <input type="radio" name="role" value="etudiant" onchange="updateProgress()">
+            <div class="role-btn">
+              <div class="role-icon">🎓</div>
+              <span class="role-label">Étudiant</span>
+              <span class="role-desc">Je cherche de l'aide pour mes cours</span>
+            </div>
+          </label>
+          <label class="role-option">
+            <input type="radio" name="role" value="tuteur" onchange="updateProgress()">
+            <div class="role-btn">
+              <div class="role-icon">📖</div>
+              <span class="role-label">Tuteur</span>
+              <span class="role-desc">J'aide et j'enseigne aux autres</span>
+            </div>
+          </label>
+        </div>
+        <div class="role-required" id="role-error">Veuillez sélectionner votre rôle.</div>
+      </div>
 
       <div class="form-group">
         <label class="form-label">Objectif sur StudySOS</label>
@@ -99,26 +177,50 @@ function previewPhoto(input) {
   reader.readAsDataURL(input.files[0]);
   updateProgress();
 }
-
 async function saveProfile() {
   const btn = document.getElementById('save-btn');
-  btn.innerHTML = '<span class="spinner"></span> Enregistrement…'; btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enregistrement…';
+  btn.disabled = true;
+
+  // Get selected role
+  const roleInput = document.querySelector('input[name="role"]:checked');
+  if (!roleInput) {
+    document.getElementById('role-error').classList.add('visible');
+    btn.innerHTML = 'Sauvegarder le profil →';
+    btn.disabled = false;
+    return;
+  }
+
+  const selectedRole = roleInput.value;
 
   // Upload photo first
   if (photoFile) {
-    const fd = new FormData(); fd.append('photo', photoFile);
+    const fd = new FormData();
+    fd.append('photo', photoFile);
     await API.upload('/api/users/upload-photo/', fd);
   }
 
-  // Save profile fields
-  const data = {};
-  fields.forEach(f => { const v = document.getElementById(f)?.value.trim(); if (v) data[f] = v; });
+  // Collect fields
+  const data = {
+    role: selectedRole
+  };
+
+  fields.forEach(f => {
+    const v = document.getElementById(f)?.value.trim();
+    if (v) data[f] = v;
+  });
 
   const r = await API.patch('/api/users/profile/', data);
-  btn.innerHTML = 'Sauvegarder le profil →'; btn.disabled = false;
 
-  if (r.ok) { showToast('Profil complété !', 'success'); setTimeout(() => window.location.href = '/profile/', 800); }
-  else showToast('Erreur lors de la sauvegarde.', 'error');
+  btn.innerHTML = 'Sauvegarder le profil →';
+  btn.disabled = false;
+
+  if (r.ok) {
+    showToast('Profil complété !', 'success');
+    setTimeout(() => window.location.href = '/profile/', 800);
+  } else {
+    showToast('Erreur lors de la sauvegarde.', 'error');
+  }
 }
 </script>
 {% endblock %}

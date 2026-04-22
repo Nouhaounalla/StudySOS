@@ -3,28 +3,28 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Session, Review
-from .serializers import SessionSerializer, ReviewSerializer
+from .serializers import Tutoringsessionserializer, ReviewSerializer
 from apps.notifications.utils import send_notification
 
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def sessions_list(request):
+def tutoringsessions_list(request):
     if request.method == 'GET':
         role = request.query_params.get('role', 'student')
         if role == 'tutor':
-            sessions = Session.objects.filter(tutor=request.user).select_related('student', 'tutor', 'subject')
+            tutoringsessions = Session.objects.filter(tutor=request.user).select_related('student', 'tutor', 'subject')
         else:
-            sessions = Session.objects.filter(student=request.user).select_related('student', 'tutor', 'subject')
+            tutoringsessions = Session.objects.filter(student=request.user).select_related('student', 'tutor', 'subject')
 
         status_filter = request.query_params.get('status')
         if status_filter:
-            sessions = sessions.filter(status=status_filter)
+            tutoringsessions = tutoringsessions.filter(status=status_filter)
 
-        return Response(SessionSerializer(sessions, many=True, context={'request': request}).data)
+        return Response(Tutoringsessionserializer(tutoringsessions, many=True, context={'request': request}).data)
 
     # POST - book a session
-    serializer = SessionSerializer(data=request.data, context={'request': request})
+    serializer = Tutoringsessionserializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         session = serializer.save(student=request.user)
         send_notification(
@@ -49,7 +49,7 @@ def session_detail(request, pk):
         return Response({'error': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
-        return Response(SessionSerializer(session, context={'request': request}).data)
+        return Response(Tutoringsessionserializer(session, context={'request': request}).data)
 
     if request.method == 'PATCH':
         new_status = request.data.get('status')
@@ -61,7 +61,7 @@ def session_detail(request, pk):
         if new_status and new_status not in allowed.get(request.user.role, []):
             return Response({'error': 'Not allowed to set this status.'}, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = SessionSerializer(session, data=request.data, partial=True, context={'request': request})
+        serializer = Tutoringsessionserializer(session, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             updated = serializer.save()
             # Notify the other party
@@ -92,8 +92,8 @@ def submit_review(request, pk):
     if serializer.is_valid():
         review = serializer.save(reviewer=request.user, reviewed=session.tutor, session=session)
         # Update tutor session/student counts
-        session.tutor.sessions_count = Session.objects.filter(tutor=session.tutor, status='completed').count()
+        session.tutor.tutoringsessions_count = Session.objects.filter(tutor=session.tutor, status='completed').count()
         session.tutor.students_count = Session.objects.filter(tutor=session.tutor, status='completed').values('student').distinct().count()
-        session.tutor.save(update_fields=['sessions_count', 'students_count'])
+        session.tutor.save(update_fields=['tutoringsessions_count', 'students_count'])
         return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,9 +1,9 @@
 {% extends 'admin/base_admin.html' %}
-{% block title %}Sessions – Admin StudySOS{% endblock %}
-{% block nav_sessions %}active{% endblock %}
+{% block title %}Tutoringsessions – Admin StudySOS{% endblock %}
+{% block nav_tutoringsessions %}active{% endblock %}
 {% block content %}
 <div class="admin-header">
-  <div class="admin-page-title">Gestion des sessions</div>
+  <div class="admin-page-title">Gestion des tutoringsessions</div>
 </div>
 
 <div class="card" style="margin-bottom:1.5rem;">
@@ -19,13 +19,13 @@
       </select>
     </div>
     <button type="submit" class="btn btn-primary">Filtrer</button>
-    <a href="/admin-panel/sessions/" class="btn btn-ghost">Réinitialiser</a>
+    <a href="/admin-panel/tutoringsessions/" class="btn btn-ghost">Réinitialiser</a>
   </form>
 </div>
 
 <div class="card">
   <div class="card-header">
-    <span class="card-title">{{ sessions|length }} session{{ sessions|length|pluralize }}</span>
+    <span class="card-title">{{ tutoringsessions|length }} session{{ tutoringsessions|length|pluralize }}</span>
   </div>
   <div class="table-wrapper">
     <table>
@@ -41,7 +41,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for s in sessions %}
+        {% for s in tutoringsessions %}
         <tr>
           <td style="font-weight:500;">{{ s.title|truncatechars:45 }}</td>
           <td>

@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     # Local apps
     'apps.users',
     'apps.questions',
-    'apps.sessions',
+    'apps.tutoringsessions',
     'apps.notifications',
     'apps.admin_panel',
 ]

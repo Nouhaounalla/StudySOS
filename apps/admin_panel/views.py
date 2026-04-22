@@ -6,7 +6,8 @@ from datetime import timedelta
 from apps.users.template_views import get_user_from_request
 from apps.users.models import User
 from apps.questions.models import Question, Answer, QuestionReport, Subject
-from apps.sessions.models import Session, Review
+from apps.tutoringsessions.models import Review
+from apps.tutoringsessions.serializers import Tutoringsessionserializer
 from apps.notifications.models import Notification
 
 
@@ -33,9 +34,9 @@ def dashboard(request):
         'total_questions': Question.objects.count(),
         'open_questions': Question.objects.filter(status='open').count(),
         'resolved_questions': Question.objects.filter(status='resolved').count(),
-        'total_sessions': Session.objects.count(),
-        'pending_sessions': Session.objects.filter(status='pending').count(),
-        'completed_sessions': Session.objects.filter(status='completed').count(),
+        'total_tutoringsessions': Session.objects.count(),
+        'pending_tutoringsessions': Session.objects.filter(status='pending').count(),
+        'completed_tutoringsessions': Session.objects.filter(status='completed').count(),
         'pending_reports': QuestionReport.objects.filter(is_resolved=False).count(),
         'online_users': User.objects.filter(is_online=True).count(),
     }
@@ -155,17 +156,17 @@ def resolve_report(request, pk):
 
 
 @admin_required
-def manage_sessions(request):
+def manage_tutoringsessions(request):
     user = get_user_from_request(request)
-    sessions = Session.objects.select_related('student', 'tutor', 'subject').order_by('-created_at')
+    tutoringsessions = Session.objects.select_related('student', 'tutor', 'subject').order_by('-created_at')
 
     status_filter = request.GET.get('status')
     if status_filter:
-        sessions = sessions.filter(status=status_filter)
+        tutoringsessions = tutoringsessions.filter(status=status_filter)
 
-    return render(request, 'admin/sessions.html', {
+    return render(request, 'admin/tutoringsessions.html', {
         'user': user,
-        'sessions': sessions,
+        'tutoringsessions': tutoringsessions,
         'status_filter': status_filter,
     })
 

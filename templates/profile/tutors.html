@@ -133,7 +133,7 @@ function renderTutors(tutors) {
           ${(t.subjects || []).slice(0,3).map(s => `<span class="badge badge-primary">${s}</span>`).join('')}
         </div>
         <div class="tutor-stats">
-          <span>📅 ${t.sessions_count} sessions</span>
+          <span>📅 ${t.tutoringsessions_count} tutoringsessions</span>
           <span>⭐ ${t.satisfaction_score || 0}%</span>
           ${t.location ? `<span>📍 ${t.location}</span>` : ''}
         </div>
@@ -176,7 +176,7 @@ async function submitBooking() {
   };
   const subj = document.getElementById('book-subject')?.value;
   if (subj) data.subject_id = parseInt(subj);
-  const r = await API.post('/api/sessions/', data);
+  const r = await API.post('/api/tutoringsessions/', data);
   if (r.ok) { showToast('Demande envoyée !', 'success'); closeModal('book-modal'); }
   else showToast(Object.values(r.data).flat().join(' ') || 'Erreur.', 'error');
 }

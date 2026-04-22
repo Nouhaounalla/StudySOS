@@ -4,16 +4,16 @@ from apps.questions.models import Subject
 
 
 class Session(models.Model):
+    
     STATUS_CHOICES = [
         ('pending', 'En attente'),
         ('confirmed', 'Confirmée'),
         ('cancelled', 'Annulée'),
         ('completed', 'Terminée'),
     ]
-
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='booked_sessions')
-    tutor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tutoring_sessions')
-    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, related_name='sessions')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='student_sessions')
+    tutor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tutor_sessions')
+    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, related_name='tutoringsessions')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     start_datetime = models.DateTimeField()
@@ -23,7 +23,7 @@ class Session(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'sessions'
+        db_table = 'tutoringsessions'
         ordering = ['-start_datetime']
 
     def __str__(self):
