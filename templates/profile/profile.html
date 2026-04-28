@@ -112,7 +112,7 @@
       <div class="tabs" style="margin-bottom:1.5rem;">
         <button class="tab-btn active" data-tab="tab-feed">Feed</button>
         <button class="tab-btn" data-tab="tab-questions">Mes questions</button>
-        <button class="tab-btn" data-tab="tab-tutoringsessions">Tutoringsessions</button>
+        <button class="tab-btn" data-tab="tab-tutoringsessions">Sessions</button>
         <button class="tab-btn" data-tab="tab-settings">Paramètres</button>
       </div>
 
@@ -233,7 +233,7 @@ function renderProfile(p) {
 
   // Stats
   document.getElementById('profile-stats').innerHTML = `
-    <div class="stat-item"><div class="val">${p.tutoringsessions_count}</div><div class="lbl">Tutoringsessions</div></div>
+    <div class="stat-item"><div class="val">${p.tutoringsessions_count}</div><div class="lbl">Sessions</div></div>
     <div class="stat-item"><div class="val">${p.students_count}</div><div class="lbl">Étudiants</div></div>
     <div class="stat-item"><div class="val">${p.satisfaction_score || 0}%</div><div class="lbl">Satisfaction</div></div>`;
 

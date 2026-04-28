@@ -6,4 +6,4 @@ def tutoringsessions_page(request):
     user = get_user_from_request(request)
     if not user:
         return redirect('auth')
-    return render(request, 'tutoringsessions/tutoringsessions.html', {'user': user})
+    return render(request, 'sessions/sessions.html', {'user': user})
